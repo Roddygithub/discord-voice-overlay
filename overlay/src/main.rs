@@ -17,7 +17,7 @@ use tracing::{error, info, warn};
 use tracing_subscriber::prelude::*;
 
 use crate::config::Config;
-use crate::layer_shell::{create_layer_shell_window, update_position};
+use crate::layer_shell::{create_layer_shell_window, update_monitor, update_position};
 use crate::lifecycle::{OverlayCommand, OverlayLifecycle};
 use crate::socket_server::SocketServer;
 use crate::ui::OverlayUI;
@@ -176,6 +176,7 @@ fn run_application(app: &Application) -> Result<()> {
                         settings.custom_x,
                         settings.custom_y,
                     );
+                    update_monitor(&window_clone, &config.overlay.monitor);
                     if ui.update_settings(settings) {
                         if !window_clone.is_visible() {
                             window_clone.present();

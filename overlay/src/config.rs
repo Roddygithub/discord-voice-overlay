@@ -39,6 +39,32 @@ pub enum AvatarSizeMode {
     Large,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MonitorConfig {
+    #[default]
+    Primary,
+    Active,
+    Cursor,
+    Index(u32),
+}
+
+impl MonitorConfig {
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "primary" => MonitorConfig::Primary,
+            "active" => MonitorConfig::Active,
+            "cursor" => MonitorConfig::Cursor,
+            s if s.starts_with("index:") => s
+                .strip_prefix("index:")
+                .and_then(|n| n.parse().ok())
+                .map(MonitorConfig::Index)
+                .unwrap_or(MonitorConfig::Primary),
+            _ => MonitorConfig::Primary,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverlayConfig {
     #[serde(default = "default_true")]
@@ -57,6 +83,8 @@ pub struct OverlayConfig {
     pub name_display: NameDisplayMode,
     #[serde(default)]
     pub avatar_size_mode: AvatarSizeMode,
+    #[serde(default)]
+    pub monitor: MonitorConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +96,8 @@ pub struct OverlaySettings {
     pub user_display: UserDisplayMode,
     pub name_display: NameDisplayMode,
     pub avatar_size_mode: AvatarSizeMode,
+    #[serde(default)]
+    pub monitor: String,
 }
 
 impl OverlaySettings {
@@ -77,6 +107,11 @@ impl OverlaySettings {
             "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "custom"
         ) && (-32_768..=32_768).contains(&self.custom_x)
             && (-32_768..=32_768).contains(&self.custom_y)
+            && (self.monitor.is_empty()
+                || self.monitor == "primary"
+                || self.monitor == "active"
+                || self.monitor == "cursor"
+                || self.monitor.starts_with("index:"))
     }
 }
 
@@ -91,6 +126,7 @@ impl Default for OverlayConfig {
             user_display: UserDisplayMode::default(),
             name_display: NameDisplayMode::default(),
             avatar_size_mode: AvatarSizeMode::default(),
+            monitor: MonitorConfig::default(),
         }
     }
 }
@@ -157,6 +193,7 @@ impl Config {
         self.overlay.user_display = settings.user_display;
         self.overlay.name_display = settings.name_display;
         self.overlay.avatar_size_mode = settings.avatar_size_mode;
+        self.overlay.monitor = MonitorConfig::from_str(&settings.monitor);
     }
 
     pub fn avatar_size_px(&self) -> i32 {
@@ -194,6 +231,7 @@ mod tests {
             user_display: UserDisplayMode::Always,
             name_display: NameDisplayMode::Always,
             avatar_size_mode: AvatarSizeMode::Large,
+            monitor: "cursor".into(),
         };
 
         config.apply_overlay_settings(settings);
@@ -203,6 +241,7 @@ mod tests {
         assert_eq!(config.overlay.custom_y, 300);
         assert_eq!(config.overlay.avatar_size_mode, AvatarSizeMode::Large);
         assert_eq!(config.avatar_size_px(), 40);
+        assert_eq!(config.overlay.monitor, MonitorConfig::Cursor);
     }
 
     #[test]
@@ -230,5 +269,15 @@ mod tests {
 
         assert_eq!(config.overlay.max_participants, 7);
         assert_eq!(config.overlay.avatar_size_mode, AvatarSizeMode::Small);
+    }
+
+    #[test]
+    fn monitor_config_parsing() {
+        assert_eq!(MonitorConfig::from_str("primary"), MonitorConfig::Primary);
+        assert_eq!(MonitorConfig::from_str("active"), MonitorConfig::Active);
+        assert_eq!(MonitorConfig::from_str("cursor"), MonitorConfig::Cursor);
+        assert_eq!(MonitorConfig::from_str("index:0"), MonitorConfig::Index(0));
+        assert_eq!(MonitorConfig::from_str("index:2"), MonitorConfig::Index(2));
+        assert_eq!(MonitorConfig::from_str("unknown"), MonitorConfig::Primary);
     }
 }

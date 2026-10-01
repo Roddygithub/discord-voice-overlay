@@ -1,9 +1,11 @@
 use anyhow::Result;
+use gdk4::prelude::*;
+use gdk4::Display;
 use gtk4::prelude::*;
 use gtk4::Application;
 use gtk4_layer_shell::{Layer, LayerShell as _};
 
-use crate::config::Config;
+use crate::config::{Config, MonitorConfig};
 
 /// Pointer pass-through: an empty input region makes the Wayland compositor
 /// deliver all pointer input to surfaces below the overlay while it stays
@@ -18,6 +20,33 @@ pub fn apply_click_through(window: &gtk4::ApplicationWindow) {
     };
     surface.set_input_region(Some(&empty_input_region()));
     tracing::debug!("Applied empty input region (pointer click-through)");
+}
+
+fn monitor_at_cursor(display: &Display) -> Option<gdk4::Monitor> {
+    let seat = display.default_seat()?;
+    let device = seat.pointer()?;
+    let (surface, _, _) = device.surface_at_position();
+    display.monitor_at_surface(&surface?)
+}
+
+fn resolve_monitor(monitor_config: &MonitorConfig) -> Option<gdk4::Monitor> {
+    let display = Display::default()?;
+    let monitors = display.monitors();
+    let n = monitors.n_items();
+    if n == 0 {
+        return None;
+    }
+
+    let first = || monitors.item(0).and_downcast::<gdk4::Monitor>();
+
+    match monitor_config {
+        MonitorConfig::Primary => first(),
+        MonitorConfig::Active | MonitorConfig::Cursor => monitor_at_cursor(&display).or_else(first),
+        MonitorConfig::Index(idx) => {
+            let idx = *idx % n;
+            monitors.item(idx).and_downcast::<gdk4::Monitor>()
+        }
+    }
 }
 
 pub fn create_layer_shell_window(
@@ -41,6 +70,12 @@ pub fn create_layer_shell_window(
         config.overlay.custom_y,
     );
     window.set_exclusive_zone(0);
+
+    if let Some(monitor) = resolve_monitor(&config.overlay.monitor) {
+        window.set_monitor(Some(&monitor));
+        tracing::debug!("Overlay assigned to monitor");
+    }
+
     // GTK auto-sizes the window from the ScrolledWindow's natural content
     // height (propagate_natural_height). No fixed size: the background
     // panel wraps exactly the visible participant rows.
@@ -66,6 +101,16 @@ pub fn update_position(
         custom_y
     );
     set_anchors(window, position, custom_x, custom_y);
+}
+
+pub fn update_monitor(window: &gtk4::ApplicationWindow, monitor_config: &MonitorConfig) {
+    if let Some(monitor) = resolve_monitor(monitor_config) {
+        window.set_monitor(Some(&monitor));
+        tracing::debug!("Overlay moved to monitor");
+    } else {
+        window.set_monitor(None);
+        tracing::debug!("Overlay monitor reset to default");
+    }
 }
 
 fn set_anchors(window: &gtk4::ApplicationWindow, position: &str, custom_x: i32, custom_y: i32) {
