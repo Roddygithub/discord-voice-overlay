@@ -30,6 +30,7 @@ function sendSettings() {
             user_display: settings.store.userDisplay,
             name_display: settings.store.nameDisplay,
             avatar_size_mode: settings.store.avatarSize,
+            monitor: settings.store.monitor,
         },
     }));
 }
@@ -99,6 +100,19 @@ const settings = definePluginSettings({
         description: "Custom vertical offset from the top edge",
         default: 20,
         onChange: activateCustomPosition,
+    },
+    monitor: {
+        type: OptionType.SELECT,
+        description: "Which monitor to display the overlay on",
+        options: [
+            { label: "Primary", value: "primary", default: true },
+            { label: "Cursor monitor", value: "cursor" },
+            { label: "Monitor 0", value: "index:0" },
+            { label: "Monitor 1", value: "index:1" },
+            { label: "Monitor 2", value: "index:2" },
+            { label: "Monitor 3", value: "index:3" },
+        ],
+        onChange: sendSettings,
     },
 });
 

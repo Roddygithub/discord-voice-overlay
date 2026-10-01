@@ -717,3 +717,20 @@ Fixed by step-level gating + version step ordering. actionlint clean.
 
 Post-triage state: full CI + CodeQL green on main; dependabot now emits one
 grouped minor/patch PR per ecosystem per month.
+
+## Monitor selection — 2026-10-01 (issue #21)
+
+Overlay can now target a specific monitor instead of the compositor's default.
+
+- `MonitorConfig` enum in `config.rs`: `Primary` (default), `Active`/`Cursor`
+  (monitor under the pointer, via `seat.pointer().surface_at_position()` +
+  `display.monitor_at_surface()`), `Index(n)` (wrapped, `index:N` in config).
+- `layer_shell.rs`: `resolve_monitor()` + `create_layer_shell_window` sets
+  `gtk4_layer_shell::set_monitor()` at startup; `update_monitor()` re-resolves
+  on every settings message so live changes move the overlay.
+- `OverlaySettings.monitor` (string, `#[serde(default)]`) validated in
+  `is_valid()` — `""`/`primary`/`active`/`cursor`/`index:*` accepted; older
+  clients that omit the field still deserialize (defaults to `Primary`).
+- Plugin (`plugin/src/index.ts`): new `monitor` SELECT setting (primary /
+  cursor / index 0-3) sent in `sendSettings()`.
+- Gates: cargo fmt/clippy/test(40)/build, plugin eslint/vitest(25) — all green.
