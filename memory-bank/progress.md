@@ -734,3 +734,28 @@ Overlay can now target a specific monitor instead of the compositor's default.
 - Plugin (`plugin/src/index.ts`): new `monitor` SELECT setting (primary /
   cursor / index 0-3) sent in `sendSettings()`.
 - Gates: cargo fmt/clippy/test(40)/build, plugin eslint/vitest(25) — all green.
+
+## README rewrite — 2026-10-02
+
+Documentation-only restructure of `README.md` (243 insertions, 181 deletions).
+No product or code change.
+
+- Reordered for a visitor: intro → highlights → comparison → install →
+  usage → configuration → systemd → manual build → architecture/protocol.
+  Previously installation (100 lines of build) came before usage, and
+  `Overview` restated the intro nearly verbatim.
+- Added a `Contents` anchor list; all 15 links validated against GitHub's
+  heading slugs (rendered through the GFM API: 4 tables, no broken anchors).
+- New `How it compares` section with verified facts on Overlayed (Tauri),
+  Discover (Python/GTK3, X11 + wlroots), DiscordOverlayLinux (Python/Qt, X11)
+  pulled from their own READMEs/metadata — no unverifiable feature claims.
+- Added a `Downloads` shields badge; social preview image is still unset.
+- Fixed stale content: plugin settings table now documents `monitor`
+  (missing after #26), project-structure root renamed to
+  `discord-voice-overlay/`, multi-monitor compositor note now says
+  configurable-but-unvalidated, `layer_shell.rs` entry notes monitor
+  resolution, `docs/installer.md` added to the tree.
+- Moved the "not published in the AUR" caveat out of the quick start and
+  into `Distribution`.
+- Hero screenshot/GIF deliberately deferred — placeholder left as an HTML
+  comment so the top of the README stays clean until assets exist.
