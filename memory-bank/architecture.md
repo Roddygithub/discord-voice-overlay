@@ -31,6 +31,9 @@
 - A human-readable installer state file records ownership, selected client,
   managed paths, revision, integration method, and rollback metadata. It never
   stores tokens, credentials, messages, or voice data.
+- On repeat install/repair, an already-enabled plugin preserves the existing
+  settings ownership metadata. This keeps the original-file rollback valid when
+  the manager created Vencord's settings file during first install.
 - State and managed paths are validated before mutation or removal; symlinked
   state, service, client, and managed paths are rejected, and release redirects
   are restricted to HTTPS.
@@ -198,7 +201,7 @@ the natural-size surface at the usable top-left.
 The repository contains an unpublished Arch source-package template plus a
 systemd user unit. CI runs Rust
 formatting, clippy, tests under Xvfb, plugin lint/tests, a release build, and a
-Vencord build at commit `ef29bbeb6119cfb53d1273ed78147bcc97d91261` using
+Vencord build at commit `3374b8a9d8f6b051c64204917360293aad7f5d75` using
 pnpm 11.9.0 with its frozen lockfile. gtk4-layer-shell source builds are pinned
 to commit `1c963c51514581c41b9bdae08cdf69171265cdda`.
 

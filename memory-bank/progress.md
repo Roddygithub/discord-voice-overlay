@@ -2,6 +2,30 @@
 
 ## Statut Global
 
+## Réparation Vencord sur la machine locale — 2026-10-06
+
+- Le gestionnaire a reconstruit Vencord au commit épinglé, configuré Vesktop et
+  démarré le service utilisateur; la compilation réelle a réussi.
+- La vérification a révélé que `repair` réécrivait à tort `vencord_settings_had_file`
+  quand le plugin était déjà activé. Le manifeste devenait alors invalide pour
+  une installation dont le fichier de réglages Vencord était initialement absent.
+- `install.sh` conserve maintenant les métadonnées d’origine sur cette voie;
+  le test de cycle install/repair/uninstall pour réglages initialement absents
+  passe avec toute la suite `tests/installer_test.sh`.
+- Le manifeste local historique a été restauré à `had_file=0` après vérification
+  que le fichier courant correspond au hash géré et qu’aucune sauvegarde d’un
+  fichier préexistant n’existe. `repair` a ensuite réussi et `status` est valide.
+- Le service utilisateur est actif et activé, le socket existe, et après le
+  redémarrage de Vesktop le journal confirme la reconnexion du plugin et la
+  réception des réglages et de l’état vocal.
+- Le panneau restant noir sur l’ancienne révision, le build géré a été mis à
+  jour vers Vencord `3374b8a9d8f6b051c64204917360293aad7f5d75` (`v1.15.10`),
+  confirmé comme tête officielle au moment du build. Le pin installateur et sa
+  documentation sont alignés; le build, la reconnexion du plugin et la suite
+  `tests/installer_test.sh` passent.
+- Après cette mise à jour, l’utilisateur a confirmé que les réglages s’ouvrent
+  correctement et que le problème de fenêtre noire a disparu.
+
 ## Post-v1.3.0 Local Cleanup and Repository Rename — 2026-08-31
 
 - v1.3.0 is installed through the supported manager for Vesktop. The managed

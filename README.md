@@ -247,7 +247,7 @@ Vencord):
 ```bash
 git clone https://github.com/Vendicated/Vencord.git
 cd Vencord
-git checkout ef29bbeb            # revision pinned by CI (.github/workflows/ci.yml)
+git checkout 3374b8a9d8f6b051c64204917360293aad7f5d75
 
 mkdir -p src/userplugins/vesktopVoiceOverlay
 cp <repo>/plugin/src/{index.ts,native.ts,protocol.ts,resendCache.ts,voiceState.ts} \

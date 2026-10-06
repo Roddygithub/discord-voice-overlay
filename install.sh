@@ -6,7 +6,7 @@ PRODUCT_NAME="Discord Voice Overlay"
 INSTALLER_VERSION="1.3.0"
 OVERLAY_VERSION="${DVO_OVERLAY_VERSION:-1.3.0}"
 VENCORD_REPO="${DVO_VENCORD_REPO:-https://github.com/Vendicated/Vencord.git}"
-VENCORD_REV="${DVO_VENCORD_REV:-ef29bbeb6119cfb53d1273ed78147bcc97d91261}"
+VENCORD_REV="${DVO_VENCORD_REV:-3374b8a9d8f6b051c64204917360293aad7f5d75}"
 RELEASE_REPO="Roddygithub/discord-voice-overlay"
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 
@@ -600,13 +600,23 @@ enable_managed_vencord_plugin() {
     if ! setting_state=$(vencord_plugin_setting_state); then
         die "Vencord settings are malformed; refusing to overwrite: $VENCORD_SETTINGS_PATH"
     fi
+    if [[ "$setting_state" == enabled ]]; then
+        if [[ ! -f "$STATE_FILE" ]]; then
+            if [[ -e "$VENCORD_SETTINGS_PATH" ]]; then
+                [[ ! -L "$VENCORD_SETTINGS_PATH" && -f "$VENCORD_SETTINGS_PATH" ]] ||
+                    die "Vencord settings path is not a regular file: $VENCORD_SETTINGS_PATH"
+                VENCORD_SETTINGS_HAD_FILE=1
+            fi
+        fi
+        return 0
+    fi
+
     VENCORD_SETTINGS_HAD_FILE=0
     if [[ -e "$VENCORD_SETTINGS_PATH" ]]; then
         [[ ! -L "$VENCORD_SETTINGS_PATH" && -f "$VENCORD_SETTINGS_PATH" ]] ||
             die "Vencord settings path is not a regular file: $VENCORD_SETTINGS_PATH"
         VENCORD_SETTINGS_HAD_FILE=1
     fi
-    [[ "$setting_state" == enabled ]] && return 0
 
     mkdir -p -- "$BACKUP_ROOT"
     if (( VENCORD_SETTINGS_HAD_FILE )); then

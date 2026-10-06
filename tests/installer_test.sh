@@ -294,6 +294,20 @@ case_missing_plugin_settings() {
     pass 'missing plugin settings are enabled and restored safely'
 }
 
+case_repair_preserves_absent_settings_ownership() {
+    make_fixture vesktop
+    rm -f -- "$VENCORD_SETTINGS_FIXTURE" "$VENCORD_SETTINGS_BEFORE"
+    run_installer install --client vesktop --yes
+    assert_contains 'vencord_settings_had_file=0' "$STATE_FILE_FIXTURE"
+    run_installer repair
+    run_installer status > "$CASE_ROOT/status" 2>&1
+    assert_not_contains 'CORRUPT' "$CASE_ROOT/status"
+    assert_contains 'vencord_settings_had_file=0' "$STATE_FILE_FIXTURE"
+    run_installer uninstall
+    assert_not_file "$VENCORD_SETTINGS_FIXTURE"
+    pass 'repair preserves ownership when Vencord settings were initially absent'
+}
+
 case_malformed_plugin_settings() {
     make_fixture discord
     printf '{ malformed\n' > "$VENCORD_SETTINGS_FIXTURE"
@@ -378,6 +392,7 @@ case_vesktop_lifecycle
 case_discord_lifecycle
 case_discord_injection_failure
 case_missing_plugin_settings
+case_repair_preserves_absent_settings_ownership
 case_malformed_plugin_settings
 case_both_requires_selection
 case_existing_conflicts

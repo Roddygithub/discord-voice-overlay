@@ -4,7 +4,7 @@
 
 | Component | Technology | Candidate baseline |
 |---|---|---|
-| Vencord userplugin | TypeScript, Vencord internal APIs | Vencord `ef29bbeb6119cfb53d1273ed78147bcc97d91261` |
+| Vencord userplugin | TypeScript, Vencord internal APIs | Vencord `3374b8a9d8f6b051c64204917360293aad7f5d75` |
 | Native socket helper | Node.js `net`, Electron IPC | Node 22 in integration CI |
 | Overlay | Rust 2021, GTK4, gtk4-layer-shell | Rust 1.97 in CI |
 | IPC | Unix stream socket, JSON Lines | Protocol header `VESKTOP_VOICE_OVERLAY/1.0` |
@@ -94,4 +94,4 @@ The v1.3.0 installer candidate is a Bash user-level manager. It uses the
 standard `git`, `pnpm`, `curl`, `sha256sum`, `node`, and `systemctl --user`
 commands; it does not put Vencord or Discord mutation into pacman hooks. The
 managed Vencord revision remains
-`ef29bbeb6119cfb53d1273ed78147bcc97d91261`.
+`3374b8a9d8f6b051c64204917360293aad7f5d75`.

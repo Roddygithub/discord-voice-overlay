@@ -10,7 +10,7 @@ integration.
 - Native Arch `vesktop` and/or `discord` package
 - `git`, Node.js, pnpm 11.9+, `curl`, `sha256sum`, `realpath`, and systemd
 - A working Vencord build environment; the manager uses the pinned revision
-  `ef29bbeb6119cfb53d1273ed78147bcc97d91261`
+  `3374b8a9d8f6b051c64204917360293aad7f5d75`
 
 ## Commands
 
