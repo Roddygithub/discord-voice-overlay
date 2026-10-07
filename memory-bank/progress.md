@@ -774,6 +774,22 @@ No product or code change.
   Discover (Python/GTK3, X11 + wlroots), DiscordOverlayLinux (Python/Qt, X11)
   pulled from their own READMEs/metadata — no unverifiable feature claims.
 - Added a `Downloads` shields badge; social preview image is still unset.
+
+## Monitor selection remediation — in progress
+
+- Confirmed the incoming settings handler previously read the immutable
+  startup `Arc<Config>` after the UI updated only its private clone; this
+  reproducibly reapplied the startup monitor rather than the incoming value.
+- Confirmed Cursor was resolved only on startup/settings events, not when the
+  pointer moved. The available GDK surface query is not a global Wayland
+  pointer-coordinate API, so cursor placement remains documented best effort.
+- Remediation work on `fix/monitor-selection-runtime` replaces the UI runtime
+  monitor setting as the source consumed by GTK, adds cursor-only 350 ms
+  tracking, deduplicates target changes, and hardens monitor-string parsing.
+- The local compositor currently exposes one output (`DP-2`); physical
+  multi-monitor acceptance is unavailable. Rust 1.97 was installed with the
+  existing mise manager; fmt, clippy, 44 Rust tests, release build, and plugin
+  lint/25 tests pass locally.
 - Fixed stale content: plugin settings table now documents `monitor`
   (missing after #26), project-structure root renamed to
   `discord-voice-overlay/`, multi-monitor compositor note now says

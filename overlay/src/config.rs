@@ -4,6 +4,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 use tracing::debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -50,18 +51,37 @@ pub enum MonitorConfig {
 }
 
 impl MonitorConfig {
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Option<Self> {
+        Self::try_from(s).ok()
+    }
+
+    pub fn tracks_cursor(&self) -> bool {
+        matches!(self, Self::Active | Self::Cursor)
+    }
+}
+
+impl TryFrom<&str> for MonitorConfig {
+    type Error = ();
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "primary" => MonitorConfig::Primary,
-            "active" => MonitorConfig::Active,
-            "cursor" => MonitorConfig::Cursor,
-            s if s.starts_with("index:") => s
+            "" | "primary" => Ok(Self::Primary),
+            "active" => Ok(Self::Active),
+            "cursor" => Ok(Self::Cursor),
+            _ => s
                 .strip_prefix("index:")
-                .and_then(|n| n.parse().ok())
-                .map(MonitorConfig::Index)
-                .unwrap_or(MonitorConfig::Primary),
-            _ => MonitorConfig::Primary,
+                .and_then(|index| index.parse::<u32>().ok())
+                .map(Self::Index)
+                .ok_or(()),
         }
+    }
+}
+
+impl FromStr for MonitorConfig {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
     }
 }
 
@@ -107,11 +127,7 @@ impl OverlaySettings {
             "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "custom"
         ) && (-32_768..=32_768).contains(&self.custom_x)
             && (-32_768..=32_768).contains(&self.custom_y)
-            && (self.monitor.is_empty()
-                || self.monitor == "primary"
-                || self.monitor == "active"
-                || self.monitor == "cursor"
-                || self.monitor.starts_with("index:"))
+            && MonitorConfig::from_str(&self.monitor).is_some()
     }
 }
 
@@ -193,7 +209,9 @@ impl Config {
         self.overlay.user_display = settings.user_display;
         self.overlay.name_display = settings.name_display;
         self.overlay.avatar_size_mode = settings.avatar_size_mode;
-        self.overlay.monitor = MonitorConfig::from_str(&settings.monitor);
+        if let Some(monitor) = MonitorConfig::from_str(&settings.monitor) {
+            self.overlay.monitor = monitor;
+        }
     }
 
     pub fn avatar_size_px(&self) -> i32 {
@@ -273,11 +291,89 @@ mod tests {
 
     #[test]
     fn monitor_config_parsing() {
-        assert_eq!(MonitorConfig::from_str("primary"), MonitorConfig::Primary);
-        assert_eq!(MonitorConfig::from_str("active"), MonitorConfig::Active);
-        assert_eq!(MonitorConfig::from_str("cursor"), MonitorConfig::Cursor);
-        assert_eq!(MonitorConfig::from_str("index:0"), MonitorConfig::Index(0));
-        assert_eq!(MonitorConfig::from_str("index:2"), MonitorConfig::Index(2));
-        assert_eq!(MonitorConfig::from_str("unknown"), MonitorConfig::Primary);
+        assert_eq!(MonitorConfig::from_str(""), Some(MonitorConfig::Primary));
+        assert_eq!(
+            MonitorConfig::from_str("primary"),
+            Some(MonitorConfig::Primary)
+        );
+        assert_eq!(
+            MonitorConfig::from_str("active"),
+            Some(MonitorConfig::Active)
+        );
+        assert_eq!(
+            MonitorConfig::from_str("cursor"),
+            Some(MonitorConfig::Cursor)
+        );
+        assert_eq!(
+            MonitorConfig::from_str("index:0"),
+            Some(MonitorConfig::Index(0))
+        );
+        assert_eq!(
+            MonitorConfig::from_str("index:2"),
+            Some(MonitorConfig::Index(2))
+        );
+        for malformed in [
+            "index:",
+            "index:foo",
+            "index:-1",
+            "unknown",
+            "index:4294967296",
+        ] {
+            assert_eq!(MonitorConfig::from_str(malformed), None);
+        }
+    }
+
+    #[test]
+    fn live_settings_replace_startup_monitor_as_the_runtime_value() {
+        let mut runtime = Config::default(); // startup Primary
+        let cursor = OverlaySettings {
+            enabled: true,
+            position: "top-right".into(),
+            custom_x: 0,
+            custom_y: 0,
+            user_display: UserDisplayMode::default(),
+            name_display: NameDisplayMode::default(),
+            avatar_size_mode: AvatarSizeMode::default(),
+            monitor: "cursor".into(),
+        };
+        runtime.apply_overlay_settings(cursor);
+        assert_eq!(runtime.overlay.monitor, MonitorConfig::Cursor);
+
+        let fixed = OverlaySettings {
+            monitor: "index:2".into(),
+            ..OverlaySettings {
+                enabled: true,
+                position: "top-right".into(),
+                custom_x: 0,
+                custom_y: 0,
+                user_display: UserDisplayMode::default(),
+                name_display: NameDisplayMode::default(),
+                avatar_size_mode: AvatarSizeMode::default(),
+                monitor: String::new(),
+            }
+        };
+        runtime.apply_overlay_settings(fixed);
+        assert_eq!(runtime.overlay.monitor, MonitorConfig::Index(2));
+        // This is the state consumed by the runtime after applying the message;
+        // it is not re-read from the immutable startup Config.
+        assert_ne!(runtime.overlay.monitor, Config::default().overlay.monitor);
+    }
+
+    #[test]
+    fn cursor_tracking_mode_transitions_are_idempotent() {
+        let mut tracking = false;
+        for mode in [MonitorConfig::Primary, MonitorConfig::Index(2)] {
+            let wanted = mode.tracks_cursor();
+            if wanted != tracking {
+                tracking = wanted;
+            }
+            assert!(!tracking);
+        }
+        assert!(MonitorConfig::Cursor.tracks_cursor());
+        tracking = MonitorConfig::Cursor.tracks_cursor();
+        assert!(tracking);
+        assert!(MonitorConfig::Cursor.tracks_cursor()); // repeated setting stays one tracker
+        tracking = MonitorConfig::Index(2).tracks_cursor();
+        assert!(!tracking);
     }
 }

@@ -105,7 +105,7 @@ const settings = definePluginSettings({
         type: OptionType.SELECT,
         description: "Which monitor to display the overlay on",
         options: [
-            { label: "Primary", value: "primary", default: true },
+            { label: "Default monitor (Monitor 0)", value: "primary", default: true },
             { label: "Cursor monitor", value: "cursor" },
             { label: "Monitor 0", value: "index:0" },
             { label: "Monitor 1", value: "index:1" },
