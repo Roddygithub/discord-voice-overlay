@@ -154,7 +154,9 @@ config is used only for initial window creation, never to overwrite a later
 plugin selection. Cursor/legacy-active mode uses one 350 ms GLib source while
 selected and removes it on mode change or application shutdown. Each tick
 compares the resolved GDK monitor object and only moves the layer surface when
-the target changes. GDK exposes no global pointer coordinates on Wayland, so
+the target changes. Changes to GDK's monitor list also re-resolve the current
+setting; an empty topology clears only the cached target and does not detach the
+surface. GDK exposes no global pointer coordinates on Wayland, so
 `surface_at_position` plus `monitor_at_surface` is best effort and may not
 identify the physical pointer monitor when the pointer is over another
 application or a surface spans outputs. GTK/GDK also has no portable primary

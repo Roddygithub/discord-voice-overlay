@@ -8,6 +8,7 @@ mod ui;
 use anyhow::Result;
 use clap::Parser;
 use gtk4::gio;
+use gtk4::gio::prelude::*;
 use gtk4::prelude::*;
 use gtk4::Application;
 use std::cell::RefCell;
@@ -151,6 +152,16 @@ fn run_application(app: &Application) -> Result<()> {
     let cursor_source = Rc::new(RefCell::new(None));
     let cursor_source_for_commands = cursor_source.clone();
     let current_monitor_for_commands = current_monitor.clone();
+    let topology_handler = Rc::new(RefCell::new(gdk4::Display::default().map(|display| {
+        let monitors = display.monitors();
+        let window = window.clone();
+        let ui = ui.clone();
+        let current_monitor = current_monitor.clone();
+        let handler = monitors.connect_items_changed(move |_, _, _, _| {
+            update_monitor(&window, &ui.monitor_config(), &current_monitor);
+        });
+        (monitors, handler)
+    })));
     glib::spawn_future_local(async move {
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
@@ -245,9 +256,13 @@ fn run_application(app: &Application) -> Result<()> {
 
     let window_clone = window.clone();
     let cursor_source = cursor_source.clone();
+    let topology_handler = topology_handler.clone();
     app.connect_shutdown(move |_| {
         if let Some(source) = cursor_source.borrow_mut().take() {
             source.remove();
+        }
+        if let Some((monitors, handler)) = topology_handler.borrow_mut().take() {
+            monitors.disconnect(handler);
         }
         window_clone.close();
     });

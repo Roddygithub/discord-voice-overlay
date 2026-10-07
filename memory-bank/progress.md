@@ -785,7 +785,9 @@ No product or code change.
   pointer-coordinate API, so cursor placement remains documented best effort.
 - Remediation work on `fix/monitor-selection-runtime` replaces the UI runtime
   monitor setting as the source consumed by GTK, adds cursor-only 350 ms
-  tracking, deduplicates target changes, and hardens monitor-string parsing.
+  tracking, deduplicates target changes, re-resolves on GDK topology changes,
+  and hardens monitor-string parsing. The setting label now marks cursor mode
+  best-effort under Wayland.
 - The local compositor currently exposes one output (`DP-2`); physical
   multi-monitor acceptance is unavailable. Rust 1.97 was installed with the
   existing mise manager; fmt, clippy, 44 Rust tests, release build, and plugin

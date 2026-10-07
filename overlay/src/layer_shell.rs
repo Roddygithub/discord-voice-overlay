@@ -119,6 +119,11 @@ pub fn update_monitor(
         window.set_monitor(Some(&monitor));
         *current.borrow_mut() = Some(monitor);
         tracing::debug!("Overlay moved to monitor");
+    } else {
+        // The topology may temporarily contain no outputs. Do not detach the
+        // layer surface; forget the stale object so the next topology event
+        // will reapply the newly resolved target.
+        current.borrow_mut().take();
     }
 }
 
