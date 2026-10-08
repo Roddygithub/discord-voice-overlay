@@ -4,8 +4,6 @@ use gdk4::Display;
 use gtk4::prelude::*;
 use gtk4::Application;
 use gtk4_layer_shell::{Layer, LayerShell as _};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 use crate::config::{Config, MonitorConfig};
 
@@ -45,7 +43,7 @@ fn resolve_monitor(monitor_config: &MonitorConfig) -> Option<gdk4::Monitor> {
         MonitorConfig::Primary => first(),
         MonitorConfig::Active | MonitorConfig::Cursor => monitor_at_cursor(&display).or_else(first),
         MonitorConfig::Index(idx) => {
-            let idx = wrapped_monitor_index(*idx, n)?;
+            let idx = *idx % n;
             monitors.item(idx).and_downcast::<gdk4::Monitor>()
         }
     }
@@ -54,7 +52,6 @@ fn resolve_monitor(monitor_config: &MonitorConfig) -> Option<gdk4::Monitor> {
 pub fn create_layer_shell_window(
     app: &Application,
     config: &Config,
-    current: &Rc<RefCell<Option<gdk4::Monitor>>>,
 ) -> Result<gtk4::ApplicationWindow> {
     let window = gtk4::ApplicationWindow::builder()
         .application(app)
@@ -76,7 +73,6 @@ pub fn create_layer_shell_window(
 
     if let Some(monitor) = resolve_monitor(&config.overlay.monitor) {
         window.set_monitor(Some(&monitor));
-        *current.borrow_mut() = Some(monitor);
         tracing::debug!("Overlay assigned to monitor");
     }
 
@@ -107,32 +103,14 @@ pub fn update_position(
     set_anchors(window, position, custom_x, custom_y);
 }
 
-pub fn update_monitor(
-    window: &gtk4::ApplicationWindow,
-    monitor_config: &MonitorConfig,
-    current: &Rc<RefCell<Option<gdk4::Monitor>>>,
-) {
+pub fn update_monitor(window: &gtk4::ApplicationWindow, monitor_config: &MonitorConfig) {
     if let Some(monitor) = resolve_monitor(monitor_config) {
-        if !monitor_target_changed(current.borrow().as_ref(), Some(&monitor)) {
-            return;
-        }
         window.set_monitor(Some(&monitor));
-        *current.borrow_mut() = Some(monitor);
         tracing::debug!("Overlay moved to monitor");
     } else {
-        // The topology may temporarily contain no outputs. Do not detach the
-        // layer surface; forget the stale object so the next topology event
-        // will reapply the newly resolved target.
-        current.borrow_mut().take();
+        window.set_monitor(None);
+        tracing::debug!("Overlay monitor reset to default");
     }
-}
-
-fn monitor_target_changed<T: PartialEq>(current: Option<&T>, target: Option<&T>) -> bool {
-    target.is_some_and(|target| current != Some(target))
-}
-
-fn wrapped_monitor_index(index: u32, count: u32) -> Option<u32> {
-    (count > 0).then(|| index % count)
 }
 
 fn set_anchors(window: &gtk4::ApplicationWindow, position: &str, custom_x: i32, custom_y: i32) {
@@ -199,16 +177,5 @@ mod tests {
         let region = empty_input_region();
         assert!(region.is_empty());
         assert_eq!(region.num_rectangles(), 0);
-    }
-
-    #[test]
-    fn monitor_target_changes_are_deduplicated_and_empty_topology_is_safe() {
-        assert!(!monitor_target_changed(Some(&2), Some(&2)));
-        assert!(monitor_target_changed(Some(&1), Some(&2)));
-        assert!(!monitor_target_changed(None::<&u8>, None));
-        assert_eq!(wrapped_monitor_index(0, 2), Some(0));
-        assert_eq!(wrapped_monitor_index(2, 2), Some(0));
-        assert_eq!(wrapped_monitor_index(5, 2), Some(1));
-        assert_eq!(wrapped_monitor_index(3, 0), None);
     }
 }

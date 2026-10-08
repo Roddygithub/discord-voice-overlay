@@ -8,12 +8,9 @@ mod ui;
 use anyhow::Result;
 use clap::Parser;
 use gtk4::gio;
-use gtk4::gio::prelude::*;
 use gtk4::prelude::*;
 use gtk4::Application;
-use std::cell::RefCell;
 use std::panic;
-use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
@@ -136,8 +133,7 @@ fn run_application(app: &Application) -> Result<()> {
     let server = SocketServer::new(config.socket_path()?.to_string(), cmd_tx.clone());
     let listener = server.bind()?;
 
-    let current_monitor = Rc::new(RefCell::new(None));
-    let window = create_layer_shell_window(app, &config, &current_monitor)?;
+    let window = create_layer_shell_window(app, &config)?;
 
     let lifecycle = OverlayLifecycle::new(cmd_tx.clone());
     let ui = OverlayUI::new(&window, &config)?;
@@ -149,19 +145,6 @@ fn run_application(app: &Application) -> Result<()> {
     window.present();
 
     let window_clone = window.clone();
-    let cursor_source = Rc::new(RefCell::new(None));
-    let cursor_source_for_commands = cursor_source.clone();
-    let current_monitor_for_commands = current_monitor.clone();
-    let topology_handler = Rc::new(RefCell::new(gdk4::Display::default().map(|display| {
-        let monitors = display.monitors();
-        let window = window.clone();
-        let ui = ui.clone();
-        let current_monitor = current_monitor.clone();
-        let handler = monitors.connect_items_changed(move |_, _, _, _| {
-            update_monitor(&window, &ui.monitor_config(), &current_monitor);
-        });
-        (monitors, handler)
-    })));
     glib::spawn_future_local(async move {
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
@@ -193,31 +176,8 @@ fn run_application(app: &Application) -> Result<()> {
                         settings.custom_x,
                         settings.custom_y,
                     );
-                    let visible = ui.update_settings(settings);
-                    let monitor_config = ui.monitor_config();
-                    if monitor_config.tracks_cursor() {
-                        if cursor_source_for_commands.borrow().is_none() {
-                            let window = window_clone.clone();
-                            let ui = ui.clone();
-                            let timer_monitor = current_monitor_for_commands.clone();
-                            let source = glib::timeout_add_local(
-                                std::time::Duration::from_millis(350),
-                                move || {
-                                    update_monitor(&window, &ui.monitor_config(), &timer_monitor);
-                                    glib::ControlFlow::Continue
-                                },
-                            );
-                            *cursor_source_for_commands.borrow_mut() = Some(source);
-                        }
-                    } else if let Some(source) = cursor_source_for_commands.borrow_mut().take() {
-                        source.remove();
-                    }
-                    update_monitor(
-                        &window_clone,
-                        &monitor_config,
-                        &current_monitor_for_commands,
-                    );
-                    if visible {
+                    update_monitor(&window_clone, &config.overlay.monitor);
+                    if ui.update_settings(settings) {
                         if !window_clone.is_visible() {
                             window_clone.present();
                         }
@@ -255,15 +215,7 @@ fn run_application(app: &Application) -> Result<()> {
         })?;
 
     let window_clone = window.clone();
-    let cursor_source = cursor_source.clone();
-    let topology_handler = topology_handler.clone();
     app.connect_shutdown(move |_| {
-        if let Some(source) = cursor_source.borrow_mut().take() {
-            source.remove();
-        }
-        if let Some((monitors, handler)) = topology_handler.borrow_mut().take() {
-            monitors.disconnect(handler);
-        }
         window_clone.close();
     });
 

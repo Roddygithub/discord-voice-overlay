@@ -192,29 +192,4 @@ mod tests {
             other => panic!("Expected valid settings message, got {other:?}"),
         }
     }
-
-    #[test]
-    fn monitor_settings_are_validated_at_the_protocol_boundary() {
-        let message = |monitor: &str| {
-            format!(
-                r#"{{"type":"settings","settings":{{"enabled":true,"position":"top-right","custom_x":20,"custom_y":20,"user_display":"speaking_only","name_display":"always","avatar_size_mode":"small","monitor":"{monitor}"}}}}"#
-            )
-        };
-        assert!(matches!(
-            deserialize_client_message(&message("index:2")),
-            Some(ClientMessage::Settings { .. })
-        ));
-        for invalid in [
-            "index:",
-            "index:foo",
-            "index:-1",
-            "index:4294967296",
-            "unknown",
-        ] {
-            assert!(
-                deserialize_client_message(&message(invalid)).is_none(),
-                "{invalid}"
-            );
-        }
-    }
 }

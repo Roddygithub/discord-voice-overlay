@@ -9,7 +9,7 @@ use gtk4::{Box, Orientation, PolicyType, ScrolledWindow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::config::{Config, MonitorConfig, OverlaySettings};
+use crate::config::{Config, OverlaySettings};
 use crate::protocol::Snapshot;
 
 pub struct OverlayUI {
@@ -80,10 +80,6 @@ impl OverlayUI {
             .is_some_and(|snapshot| self.participant_list.update(snapshot));
         self.container.set_visible(visible);
         visible
-    }
-
-    pub fn monitor_config(&self) -> MonitorConfig {
-        self.config.borrow().overlay.monitor.clone()
     }
 
     pub fn clear(&self) {

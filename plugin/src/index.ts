@@ -103,10 +103,10 @@ const settings = definePluginSettings({
     },
     monitor: {
         type: OptionType.SELECT,
-        description: "Cursor targeting is best-effort on Wayland and may not identify other apps' surfaces",
+        description: "Which monitor to display the overlay on",
         options: [
-            { label: "Default monitor (Monitor 0)", value: "primary", default: true },
-            { label: "Cursor monitor (best effort)", value: "cursor" },
+            { label: "Primary", value: "primary", default: true },
+            { label: "Cursor monitor", value: "cursor" },
             { label: "Monitor 0", value: "index:0" },
             { label: "Monitor 1", value: "index:1" },
             { label: "Monitor 2", value: "index:2" },

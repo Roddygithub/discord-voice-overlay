@@ -131,14 +131,7 @@ restart.
 | `userDisplay` | speaking only (default), always |
 | `nameDisplay` | speaking only (default), always, never |
 | `avatarSize` | small (default), large |
-| `monitor` | Default monitor (currently GDK Monitor 0), cursor monitor, monitor 0–3 |
-
-The cursor mode checks for a changed target every 350 ms. On Wayland, GDK does
-not expose global pointer coordinates across other applications; the overlay can
-only infer the pointer's monitor from a surface GDK can identify. This is a
-best-effort behavior, not a compositor-independent guarantee. GDK also does not
-expose a portable primary-monitor designation here, so the historical `primary`
-setting resolves to GDK Monitor 0 (the first listed output).
+| `monitor` | primary (default), cursor monitor, monitor 0–3 |
 
 An optional TOML file at `~/.config/vesktop-voice-overlay/config.toml` is
 read at overlay startup if present — it is **never created or written** by
