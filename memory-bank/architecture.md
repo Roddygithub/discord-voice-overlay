@@ -148,6 +148,21 @@ immediately.
 
 ## GTK And Layer Shell
 
+Monitor selection is stored in the UI's in-memory `Config`; each settings
+message updates that config before monitor placement is resolved. The startup
+config is used only for initial window creation, never to overwrite a later
+plugin selection. Cursor/legacy-active mode uses one 350 ms GLib source while
+selected and removes it on mode change or application shutdown. Each tick
+compares the resolved GDK monitor object and only moves the layer surface when
+the target changes. Changes to GDK's monitor list also re-resolve the current
+setting; an empty topology clears only the cached target and does not detach the
+surface. GDK exposes no global pointer coordinates on Wayland, so
+`surface_at_position` plus `monitor_at_surface` is best effort and may not
+identify the physical pointer monitor when the pointer is over another
+application or a surface spans outputs. GTK/GDK also has no portable primary
+monitor designation; persisted `primary` therefore means first-listed GDK
+monitor (Monitor 0).
+
 The application uses a non-unique `GtkApplication`; duplicate-instance
 ownership is determined synchronously by the Unix socket bind. A stale socket
 is replaced, while a connectable socket causes startup to fail.
