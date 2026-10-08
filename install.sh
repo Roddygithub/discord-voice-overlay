@@ -29,6 +29,9 @@ VENCORD_SETTINGS_BACKUP="${BACKUP_ROOT}/vencord-settings.json"
 OMARCHY_VOICE_SETTINGS_PATH="${CONFIG_HOME}/vesktop/settings/settings.json"
 OMARCHY_VOICE_SETTINGS_BACKUP="${BACKUP_ROOT}/vesktop-voice-settings.json"
 OMARCHY_INTEGRATION_ROOT="${MANAGED_ROOT}/omarchy-discord"
+OMARCHY_PLUGIN_DIR="${CONFIG_HOME}/omarchy/plugins/io.github.thisisgm.discord"
+OMARCHY_UPDATE_SERVICE_PATH="${CONFIG_HOME}/systemd/user/discord-voice-overlay-omarchy-update.service"
+OMARCHY_UPDATE_TIMER_PATH="${CONFIG_HOME}/systemd/user/discord-voice-overlay-omarchy-update.timer"
 
 DRY_RUN=0
 ASSUME_YES=0
@@ -55,6 +58,8 @@ OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH=""
 OMARCHY_VOICE_SETTINGS_MANAGED_HASH=""
 OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH=""
 OMARCHY_VOICE_SETTINGS_MODIFIED_THIS_RUN=0
+OMARCHY_UPDATE_SERVICE_CREATED_THIS_RUN=0
+OMARCHY_UPDATE_TIMER_CREATED_THIS_RUN=0
 INSTALL_COMPLETED=0
 
 CLIENT_VESKTOP_NATIVE=0
@@ -94,6 +99,18 @@ version() { printf '%s installer %s\n' "$PRODUCT_NAME" "$INSTALLER_VERSION"; }
 
 cleanup() {
     local path
+    if (( !INSTALL_COMPLETED )); then
+        if (( OMARCHY_UPDATE_TIMER_CREATED_THIS_RUN )); then
+            systemctl --user disable --now discord-voice-overlay-omarchy-update.timer >/dev/null 2>&1 || true
+            rm -f -- "$OMARCHY_UPDATE_TIMER_PATH"
+        fi
+        if (( OMARCHY_UPDATE_SERVICE_CREATED_THIS_RUN )); then
+            rm -f -- "$OMARCHY_UPDATE_SERVICE_PATH"
+        fi
+        if (( OMARCHY_UPDATE_SERVICE_CREATED_THIS_RUN || OMARCHY_UPDATE_TIMER_CREATED_THIS_RUN )); then
+            systemctl --user daemon-reload >/dev/null 2>&1 || true
+        fi
+    fi
     if (( OMARCHY_VOICE_SETTINGS_MODIFIED_THIS_RUN && !INSTALL_COMPLETED )); then
         if [[ -n "$OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH" && -f "$OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH" ]]; then
             mkdir -p -- "$(dirname -- "$OMARCHY_VOICE_SETTINGS_PATH")"
@@ -738,19 +755,132 @@ ensure_managed_vencord() {
 ensure_omarchy_voice_assets() {
     local file tmp
     (( OMARCHY_VOICE_CONTROLS_ENABLED )) || return 0
+    need_cmd python3
     if (( DRY_RUN )); then
         info "[dry-run] install the optional omarchy-discord bridge under $OMARCHY_INTEGRATION_ROOT"
         return 0
     fi
     [[ ! -L "$OMARCHY_INTEGRATION_ROOT" ]] || die 'omarchy-discord integration path must not be a symlink'
     mkdir -p -- "$OMARCHY_INTEGRATION_ROOT"
-    for file in vbridge.py rpc-adapter.py; do
+    for file in vbridge.py rpc-adapter.py update-omarchy-plugin.py; do
         [[ ! -L "$OMARCHY_INTEGRATION_ROOT/$file" ]] || die "refusing to overwrite symlink: $OMARCHY_INTEGRATION_ROOT/$file"
         tmp=$(mktemp "$OMARCHY_INTEGRATION_ROOT/.${file}.XXXXXX")
         cp -- "$SCRIPT_DIR/integrations/omarchy-discord/$file" "$tmp"
         chmod 755 "$tmp"
         mv -f -- "$tmp" "$OMARCHY_INTEGRATION_ROOT/$file"
     done
+    python3 "$OMARCHY_INTEGRATION_ROOT/update-omarchy-plugin.py" --capture
+}
+
+omarchy_update_service_content() {
+    local executable config_home
+    executable=$(systemd_exec_path "$OMARCHY_INTEGRATION_ROOT/update-omarchy-plugin.py")
+    config_home=${CONFIG_HOME//\\/\\\\}
+    config_home=${config_home//\"/\\\"}
+    config_home=${config_home//\$/\\\$}
+    config_home=${config_home//%/%%}
+    printf '[Unit]\nDescription=Safely update the Omarchy Discord Vesktop bridge\nAfter=default.target\n\n[Service]\nType=oneshot\nEnvironment="XDG_CONFIG_HOME=%s"\nExecStart=/usr/bin/python3 %s\n' "$config_home" "$executable"
+}
+
+omarchy_update_service_content_legacy() {
+    local executable
+    executable=$(systemd_exec_path "$OMARCHY_INTEGRATION_ROOT/update-omarchy-plugin.py")
+    printf '[Unit]\nDescription=Safely update the Omarchy Discord Vesktop bridge\nAfter=default.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/python3 %s\n' "$executable"
+}
+
+omarchy_update_timer_content() {
+    printf '[Unit]\nDescription=Daily safe update check for omarchy-discord\n\n[Timer]\nOnCalendar=daily\nRandomizedDelaySec=30m\nPersistent=true\nUnit=discord-voice-overlay-omarchy-update.service\n\n[Install]\nWantedBy=timers.target\n'
+}
+
+ensure_omarchy_update_units() {
+    local service_tmp timer_tmp timer_was_present=0 timer_enabled
+    (( OMARCHY_VOICE_CONTROLS_ENABLED )) || return 0
+    [[ -d "$OMARCHY_PLUGIN_DIR/.git" ]] || {
+        info 'Omarchy Discord auto-update: not enabled (no git-managed panel checkout found).'
+        remove_omarchy_update_units
+        return 0
+    }
+    if (( DRY_RUN )); then
+        info "[dry-run] install daily omarchy-discord update timer at $OMARCHY_UPDATE_TIMER_PATH"
+        return 0
+    fi
+    mkdir -p -- "$(dirname -- "$OMARCHY_UPDATE_SERVICE_PATH")"
+    [[ ! -L "$OMARCHY_UPDATE_SERVICE_PATH" && ! -L "$OMARCHY_UPDATE_TIMER_PATH" ]] ||
+        die 'Omarchy update unit paths must not be symlinks'
+    if [[ -e "$OMARCHY_UPDATE_SERVICE_PATH" ]]; then
+        [[ -f "$OMARCHY_UPDATE_SERVICE_PATH" ]] ||
+            die "existing update service differs; refusing to overwrite: $OMARCHY_UPDATE_SERVICE_PATH"
+        if ! cmp -s <(omarchy_update_service_content) "$OMARCHY_UPDATE_SERVICE_PATH"; then
+            if cmp -s <(omarchy_update_service_content_legacy) "$OMARCHY_UPDATE_SERVICE_PATH"; then
+                service_tmp=$(mktemp "$(dirname -- "$OMARCHY_UPDATE_SERVICE_PATH")/.discord-voice-overlay-update.XXXXXX")
+                omarchy_update_service_content > "$service_tmp"
+                chmod 644 "$service_tmp"
+                mv -f -- "$service_tmp" "$OMARCHY_UPDATE_SERVICE_PATH"
+            else
+                die "existing update service differs; refusing to overwrite: $OMARCHY_UPDATE_SERVICE_PATH"
+            fi
+        fi
+    else
+        service_tmp=$(mktemp "$(dirname -- "$OMARCHY_UPDATE_SERVICE_PATH")/.discord-voice-overlay-update.XXXXXX")
+        omarchy_update_service_content > "$service_tmp"
+        chmod 644 "$service_tmp"
+        mv -f -- "$service_tmp" "$OMARCHY_UPDATE_SERVICE_PATH"
+        OMARCHY_UPDATE_SERVICE_CREATED_THIS_RUN=1
+    fi
+    if [[ -e "$OMARCHY_UPDATE_TIMER_PATH" ]]; then
+        if [[ ! -f "$OMARCHY_UPDATE_TIMER_PATH" ]] ||
+            ! cmp -s <(omarchy_update_timer_content) "$OMARCHY_UPDATE_TIMER_PATH"; then
+            die "existing update timer differs; refusing to overwrite: $OMARCHY_UPDATE_TIMER_PATH"
+        fi
+        timer_was_present=1
+    else
+        timer_tmp=$(mktemp "$(dirname -- "$OMARCHY_UPDATE_TIMER_PATH")/.discord-voice-overlay-update.XXXXXX")
+        omarchy_update_timer_content > "$timer_tmp"
+        chmod 644 "$timer_tmp"
+        mv -f -- "$timer_tmp" "$OMARCHY_UPDATE_TIMER_PATH"
+        OMARCHY_UPDATE_TIMER_CREATED_THIS_RUN=1
+    fi
+    need_cmd systemctl
+    systemctl --user daemon-reload
+    if (( timer_was_present )); then
+        timer_enabled=$(systemctl --user is-enabled discord-voice-overlay-omarchy-update.timer 2>/dev/null || true)
+        if [[ "$timer_enabled" != enabled ]]; then
+            info 'Omarchy Discord auto-update remains disabled by the user.'
+            return 0
+        fi
+    fi
+    systemctl --user enable --now discord-voice-overlay-omarchy-update.timer
+    info 'Omarchy Discord auto-update: daily check enabled with rollback on bridge conflicts.'
+}
+
+remove_omarchy_update_units() {
+    local changed=0
+    if [[ -e "$OMARCHY_UPDATE_TIMER_PATH" ]]; then
+        [[ ! -L "$OMARCHY_UPDATE_TIMER_PATH" && -f "$OMARCHY_UPDATE_TIMER_PATH" ]] ||
+            die "refusing to remove non-regular update timer: $OMARCHY_UPDATE_TIMER_PATH"
+        if cmp -s <(omarchy_update_timer_content) "$OMARCHY_UPDATE_TIMER_PATH"; then
+            if (( ! DRY_RUN )); then
+                systemctl --user disable --now discord-voice-overlay-omarchy-update.timer >/dev/null 2>&1 || true
+                rm -f -- "$OMARCHY_UPDATE_TIMER_PATH"
+            else
+                info "[dry-run] remove update timer $OMARCHY_UPDATE_TIMER_PATH"
+            fi
+            changed=1
+        else
+            warn "leaving foreign update timer untouched: $OMARCHY_UPDATE_TIMER_PATH"
+        fi
+    fi
+    if [[ -e "$OMARCHY_UPDATE_SERVICE_PATH" ]]; then
+        [[ ! -L "$OMARCHY_UPDATE_SERVICE_PATH" && -f "$OMARCHY_UPDATE_SERVICE_PATH" ]] ||
+            die "refusing to remove non-regular update service: $OMARCHY_UPDATE_SERVICE_PATH"
+        if cmp -s <(omarchy_update_service_content) "$OMARCHY_UPDATE_SERVICE_PATH"; then
+            if (( ! DRY_RUN )); then rm -f -- "$OMARCHY_UPDATE_SERVICE_PATH"; fi
+            changed=1
+        else
+            warn "leaving foreign update service untouched: $OMARCHY_UPDATE_SERVICE_PATH"
+        fi
+    fi
+    if (( changed && !DRY_RUN )); then systemctl --user daemon-reload || true; fi
 }
 
 remove_omarchy_voice_assets() {
@@ -759,8 +889,9 @@ remove_omarchy_voice_assets() {
         info "[dry-run] remove the optional omarchy-discord bridge from $OMARCHY_INTEGRATION_ROOT"
         return 0
     fi
+    remove_omarchy_update_units
     [[ ! -L "$OMARCHY_INTEGRATION_ROOT" ]] || die 'omarchy-discord integration path must not be a symlink'
-    for file in vbridge.py rpc-adapter.py; do
+    for file in vbridge.py rpc-adapter.py update-omarchy-plugin.py panel-adaptation.patch; do
         [[ ! -L "$OMARCHY_INTEGRATION_ROOT/$file" ]] || die "refusing to remove symlink: $OMARCHY_INTEGRATION_ROOT/$file"
         rm -f -- "$OMARCHY_INTEGRATION_ROOT/$file"
     done
@@ -1233,6 +1364,12 @@ status_cmd() {
             info "Integration: $(state_get integration_method)"
             if [[ "$(state_get omarchy_voice_controls 2>/dev/null || printf '0')" == 1 ]]; then
                 info 'Omarchy Discord voice controls: enabled for Vesktop'
+                if command -v systemctl >/dev/null 2>&1 &&
+                    systemctl --user is-enabled discord-voice-overlay-omarchy-update.timer >/dev/null 2>&1; then
+                    info 'Omarchy Discord plugin updates: daily auto-update enabled'
+                else
+                    info 'Omarchy Discord plugin updates: timer disabled or unavailable'
+                fi
             else
                 info 'Omarchy Discord voice controls: disabled'
             fi
@@ -1277,11 +1414,12 @@ install_cmd() {
     if [[ "$SELECTED_CLIENT" == vesktop ]]; then preflight_vesktop; else preflight_discord; fi
     select_vencord_settings_path "$SELECTED_CLIENT"
     ensure_overlay
+    if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then ensure_omarchy_voice_assets; fi
     ensure_managed_vencord
     enable_managed_vencord_plugin
     if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then
         set_omarchy_voice_plugin_setting true
-        ensure_omarchy_voice_assets
+        ensure_omarchy_update_units
     elif [[ "$REQUESTED_OMARCHY_VOICE_CONTROLS" == 0 ]]; then
         set_omarchy_voice_plugin_setting false
         remove_omarchy_voice_assets
@@ -1376,6 +1514,7 @@ uninstall_cmd() {
     fi
     restore_omarchy_voice_plugin_setting
     restore_managed_vencord_plugin
+    remove_omarchy_update_units
     remove_service || die 'uninstall stopped because the service was not manager-owned'
     remove_owned_tree "$MANAGED_ROOT"
     if (( ! DRY_RUN )); then

@@ -93,7 +93,10 @@ its setting in Vesktop. Follow
 [`integrations/omarchy-discord/README.md`](integrations/omarchy-discord/README.md)
 to connect the panel while retaining the original Discord RPC backend. Use
 `./install.sh update --no-omarchy-voice-controls` to turn the feature off; a
-plain `update` or `repair` preserves the selected mode.
+plain `update` or `repair` preserves the selected mode. When the Thisisgm plugin
+is installed from Git, the manager also enables a daily safe updater that keeps
+the local bridge adaptation across compatible upstream changes and rolls back
+on conflicts.
 
 ```bash
 ./install.sh install    # install or reinstall

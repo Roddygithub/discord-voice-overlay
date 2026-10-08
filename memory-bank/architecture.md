@@ -108,7 +108,13 @@ The implementation originated in
 `Roddygithub/vesktop-voice-control@6acdb3a546245c44b4985397e3b0d61c27d4ae61`.
 Its maintained copy lives in `integrations/omarchy-discord/` under this
 repository's GPL-3.0 license. Panel-specific QML wiring is documented beside
-the adapter; upstream `omarchy-discord` remains independently usable.
+the adapter; upstream `omarchy-discord` remains independently usable. If the
+local panel checkout is Git-managed, an optional persistent daily timer
+fast-forwards upstream changes while temporarily unapplying and then restoring
+the captured local adaptation. Conflicts or validation failures restore the
+previous plugin revision and notify the user. Vesktop package upgrades keep the
+custom Vencord path; the timer health-checks a running bridge instead of
+rebuilding the same pinned Vencord source unnecessarily.
 
 ## Plugin
 

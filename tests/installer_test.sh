@@ -286,6 +286,16 @@ case_vesktop_lifecycle() {
 
 case_omarchy_voice_controls_lifecycle() {
     make_fixture vesktop
+    panel_repo="$CASE_HOME/.config/omarchy/plugins/io.github.thisisgm.discord"
+    mkdir -p -- "$panel_repo"
+    printf 'upstream panel\n' > "$panel_repo/Rpc.qml"
+    git -C "$panel_repo" init -q
+    git -C "$panel_repo" config user.email test@example.invalid
+    git -C "$panel_repo" config user.name test
+    git -C "$panel_repo" remote add origin https://github.com/thisisgm/omarchy-discord
+    git -C "$panel_repo" add Rpc.qml
+    git -C "$panel_repo" commit -qm fixture
+    printf 'local bridge adapter\n' >> "$panel_repo/Rpc.qml"
     cp -p "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before"
     run_installer install --client vesktop --omarchy-voice-controls --yes
     assert_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
@@ -294,6 +304,10 @@ case_omarchy_voice_controls_lifecycle() {
     assert_omarchy_voice_plugin_enabled "$OMARCHY_VOICE_SETTINGS_FIXTURE"
     assert_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
     assert_file "$DVO_MANAGED_ROOT/omarchy-discord/rpc-adapter.py"
+    assert_file "$DVO_MANAGED_ROOT/omarchy-discord/update-omarchy-plugin.py"
+    assert_file "$DVO_MANAGED_ROOT/omarchy-discord/panel-adaptation.patch"
+    assert_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.service"
+    assert_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.timer"
     assert_contains 'omarchy_voice_controls=1' "$STATE_FILE_FIXTURE"
 
     run_installer update
@@ -305,10 +319,14 @@ case_omarchy_voice_controls_lifecycle() {
     assert_not_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
     assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
     assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/rpc-adapter.py"
+    assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.service"
+    assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.timer"
 
     run_installer uninstall
     cmp -s "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before" ||
         fail 'optional voice-control setting was not restored on uninstall'
+    assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.service"
+    assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.timer"
     pass 'opt-in Vesktop bridge build, update, disable, and settings rollback'
 }
 

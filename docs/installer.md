@@ -38,6 +38,17 @@ those options is supplied. The feature does not disable arRPC or replace
 [`../integrations/omarchy-discord/README.md`](../integrations/omarchy-discord/README.md)
 for the local panel connection.
 
+When the Thisisgm plugin is present as a Git checkout, opting in also enables a
+daily user timer. It temporarily removes only the captured local QML adaptation,
+fast-forwards the upstream plugin, reapplies and validates the adaptation, then
+restarts the shell. If upstream changes conflict with the bridge wiring, the
+update is rolled back and a notification asks for review. Vesktop package
+updates do not replace the managed Vencord directory; the timer probes the live
+bridge when Vesktop is running and reports a compatibility failure rather than
+blindly rebuilding against the same pinned Vencord revision. Disable the feature
+with `--no-omarchy-voice-controls` or stop the timer with
+`systemctl --user disable --now discord-voice-overlay-omarchy-update.timer`.
+
 ## Ownership
 
 The manager owns only:

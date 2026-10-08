@@ -25,6 +25,18 @@
   the Omarchy shell, the adapter connected to Vesktop's socket and a live probe
   returned the current Lobby/guild/mute state. Vesktop's active call was not
   interrupted; its updated Vencord bundle is loaded at the next client start.
+- A persistent daily user timer now updates the Git-managed Thisisgm plugin with
+  the local adapter diff temporarily unapplied. It restores the patch after a
+  clean fast-forward and reverts to the previous plugin revision with a
+  notification when the patch no longer applies or validation fails. It also
+  checks the bridge when Vesktop is running; Vesktop package updates retain the
+  custom Vencord path and do not trigger pointless rebuilds. The timer is
+  enabled locally; the updater was run once with no upstream changes and the
+  bridge health probe passed.
+- Automated updater fixtures pass for both a compatible upstream fast-forward
+  and a conflicting `Rpc.qml` update that must roll back while restoring the
+  local adapter. Installer tests also cover timer install/removal and settings
+  rollback.
 - The Discord capture source was separately observed muted in PipeWire and
   unmuted; it remains unmuted during this validation.
 
