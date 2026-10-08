@@ -5,39 +5,47 @@
 ## PR #30 reverted before release — 2026-10-08
 
 - PR #30 (`6afbb35069eb7b057eda8391cec94d3435c556a2`) was merged to `main`
-  and intentionally reverted before release. It was never included in a release;
-  v1.3.0 remains the stable baseline and its installed service is unaffected.
-- The experimental change showed promise in headless fixed-output tests:
-  Monitor 0/1 assignment and index wrapping worked. Cursor/Active remained
-  best-effort under GDK/Wayland.
-- Hotplug testing produced two candidate SIGSEGVs in GTK4/Wayland dispatch.
-  The exact root cause is unresolved; there is no evidence proving whether the
-  defect is project monitor lifecycle handling or upstream GTK/GDK/Wayland.
-  No speculative source fix is retained.
-- Issue #21 remains OPEN. Further monitor-selection work is deferred until
-  stronger diagnostic evidence or demonstrated multi-monitor demand justifies
-  another implementation and validation effort.
-- Follow-up diagnosis reproduced the crash once at 08:18:34 CEST (core PID
-  3926009, debug candidate SHA-256
+  and intentionally reverted before release. It was never shipped; v1.3.0
+  remains the stable baseline and its installed service is unaffected.
+- The experiment showed promise in fixed-output HEADLESS testing: Monitor 0/1
+  placement and index wrapping worked. Cursor/Active remained best-effort under
+  GDK/Wayland.
+- The initial headless validation crashed the candidate at 03:13:45 CEST. A
+  follow-up reproduced SIGSEGV at 08:18:34 CEST (core PID 3926009; debug
+  candidate SHA-256
   `7a49cb4eaa5fe717b9d820f948c80afef52b1f468176d7f1c54dd84903099bb1`). The
-  core is SIGSEGV/SEGV_MAPERR at GTK4+0x4c2c46 via Wayland
+  core reports SIGSEGV/SEGV_MAPERR at GTK4+0x4c2c46 through Wayland
   `wl_closure_invoke`; GTK symbols were unavailable and no project Rust
   callback appears on the fault stack. No OOM evidence was found.
-- Six HEADLESS add/remove cycles with DP-2 selected (both hidden and visible)
-  survived. The selected HEADLESS control survived four observed target
-  reassignments; neither control isolates the invalid object or contradicts
-  the intermittent crash. No source fix, hotplug regression test, performance
-  measurement, or independent review was completed; no deterministic shortest
-  triggering operation was established.
-- The normal revert is recorded locally as `05f8872` (pending push at the time
-  this note was written); it removes the PR #30 changes without rewriting
-  history. The documentation follow-up preserves these findings. No new tag,
-  release, or AUR publication is authorized.
-- Final restoration check: temporary HEADLESS outputs, candidate units, sockets,
-  and configs removed; only DP-2 remains. Installed v1.3.0 is active as PID
-  3640956 with `NRestarts=0`, its hash is unchanged, and workspace 4/cursor
-  217,955 were restored. Installer `status` and `doctor` passed.
+- Six DP-2-selected HEADLESS add/remove cycles (hidden and visible) survived;
+  the selected HEADLESS control survived four observed target reassignments.
+  These controls narrow but do not establish whether project monitor lifecycle
+  handling or upstream GTK/GDK/Wayland is responsible. The final triggering
+  operation was not isolated. No source fix, hotplug regression test,
+  performance measurement, or independent review was completed.
+- Issue #21 remains OPEN. Further remediation is deferred pending stronger
+  diagnostic evidence or demonstrated multi-monitor demand. No new tag,
+  release, or AUR publication was made.
+- Temporary outputs, candidate units, sockets, and configs were removed. The
+  installed v1.3.0 service remains active (PID 3640956, `NRestarts=0`) with
+  unchanged binary hash; workspace 4 and cursor 217,955 were restored.
+  Installer `status` and `doctor` passed. See architecture notes below.
 
+## Earlier multi-output validation — 2026-10-08
+
+- Source was reconciled at `6afbb35069eb7b057eda8391cec94d3435c556a2`.
+  Fixed Monitor 0/1 placement, index wrapping, strict invalid rejection, live
+  fixed-monitor settings, mode changes, and hide/show passed on a disposable
+  Hyprland HEADLESS output.
+- Cursor movement could be controlled through Hyprland Lua, but GDK cursor
+  monitor resolution was unreliable over unrelated application surfaces,
+  consistent with the Wayland best-effort limitation.
+- During add/use/remove/recreate testing, the candidate process SIGSEGV'd at
+  03:13:45 CEST in GTK4 via libffi during Wayland display dispatch. The exact
+  phase/root cause was unknown; no OOM was observed. This historical first
+  crash remains recorded even though PR #30 was never released.
+- Issue #21 remains open; do not recommend a monitor-remediation release until
+  the crash cause is established and a fix passes repeated runtime validation.
 
 ## Réparation Vencord sur la machine locale — 2026-10-06
 

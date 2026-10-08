@@ -149,13 +149,20 @@ immediately.
 ## GTK And Layer Shell
 
 PR #30's unreleased monitor-selection remediation was reverted from main after
-HEADLESS hotplug testing exposed candidate GTK4/Wayland SIGSEGVs. Its fixed
-Monitor 0/1 tests showed promise, but Cursor/Active stayed best-effort and the
-root cause remains unresolved between project lifecycle handling and upstream
-GTK/GDK/Wayland. PR #30 was never released: v1.3.0 remains the stable baseline,
-issue #21 remains open, and further remediation is deferred pending stronger
-diagnostic evidence or demonstrated multi-monitor demand. Detailed original and
-follow-up crash evidence and controls are retained in `memory-bank/progress.md`.
+HEADLESS hotplug testing exposed candidate GTK4/Wayland SIGSEGVs. Fixed
+Monitor 0/1 placement showed promise; Cursor/Active remained best-effort. The
+crashing core faults in GTK4+0x4c2c46 during Wayland `wl_closure_invoke`, but
+no project Rust callback is on its stack and GTK symbols were unavailable.
+Controls did not identify the invalid object or prove whether project monitor
+lifecycle handling or upstream GTK/GDK/Wayland is responsible. PR #30 was never
+released; v1.3.0 remains the stable baseline, issue #21 remains open, and
+further remediation is deferred pending stronger evidence or demonstrated
+multi-monitor demand. Details are in `memory-bank/progress.md`.
+
+GTK/GDK has no portable primary monitor designation; the original monitor
+selection implementation (before PR #30) maps persisted `primary` to the
+compositor/default output. The issue #21 experimental selection code remains
+reverted from current source.
 
 The application uses a non-unique `GtkApplication`; duplicate-instance
 ownership is determined synchronously by the Unix socket bind. A stale socket
@@ -252,4 +259,8 @@ publishes without a pushed tag.
 - Layer-shell placement and fullscreen behavior were validated in the same
   Hyprland/game session. Sway, niri, wayfire, GNOME, KDE, and multi-monitor
   behavior remain unverified.
-- Multi-monitor placement and exclusive-fullscreen behavior remain unverified.
+- Multi-monitor fixed placement is validated on a Hyprland HEADLESS output as
+  of 2026-10-08, but physical dual-monitor and exclusive-fullscreen behavior
+  remain unverified. A remove/re-add hotplug cycle while targeting HEADLESS was
+  followed by a candidate GTK/Wayland SIGSEGV; issue #21 remains open pending
+  root-cause work.
