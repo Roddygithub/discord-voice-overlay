@@ -81,6 +81,20 @@ under `~/.local/share/discord-voice-overlay/`, verifies release checksums,
 enables only the managed plugin in Vencord settings, and preserves
 `~/.config/vesktop-voice-overlay/config.toml`.
 
+For the optional voice controls in the Thisisgm Omarchy Discord panel, opt in
+when installing Vesktop:
+
+```bash
+./install.sh --client vesktop --omarchy-voice-controls
+```
+
+This compiles a second Vencord userplugin, installs its local bridge, and enables
+its setting in Vesktop. Follow
+[`integrations/omarchy-discord/README.md`](integrations/omarchy-discord/README.md)
+to connect the panel while retaining the original Discord RPC backend. Use
+`./install.sh update --no-omarchy-voice-controls` to turn the feature off; a
+plain `update` or `repair` preserves the selected mode.
+
 ```bash
 ./install.sh install    # install or reinstall
 ./install.sh status     # what is installed, who owns it

@@ -28,6 +28,16 @@ is mandatory. `--yes` explicitly approves Vesktop state switching or Discord
 application-resource injection. `--dry-run` performs detection and prints
 planned actions without mutation.
 
+`--omarchy-voice-controls` is an explicit Vesktop-only opt-in. It builds the
+additional `VesktopVoiceControl` Vencord plugin, enables it in Vesktop's
+`~/.config/vesktop/settings/settings.json`, and installs the Thisisgm-compatible
+adapter and bridge under the managed data tree. `--no-omarchy-voice-controls`
+disables it. `update` and `repair` preserve the recorded choice unless one of
+those options is supplied. The feature does not disable arRPC or replace
+`rpc.py` for native Discord. See
+[`../integrations/omarchy-discord/README.md`](../integrations/omarchy-discord/README.md)
+for the local panel connection.
+
 ## Ownership
 
 The manager owns only:
@@ -37,6 +47,8 @@ The manager owns only:
 - its exact user unit at `~/.config/systemd/user/vesktop-voice-overlay.service`
 - the selected Vesktop `vencordDir` value, with a rollback copy
 - a Discord injection only when the manager performed it through Vencord
+- the Vesktop voice-control plugin source/build and its settings only when
+  `--omarchy-voice-controls` was selected
 
 The overlay configuration at
 `~/.config/vesktop-voice-overlay/config.toml` is never written or removed.
@@ -46,16 +58,23 @@ custom userplugins, and foreign Discord injections are not overwritten.
 ## Managed Vencord
 
 The checkout is cloned from the official Vencord repository at the exact pinned
-revision above. The five shared plugin source files are copied into
-`src/userplugins/vesktopVoiceOverlay/`, then `pnpm install --frozen-lockfile`
-and `pnpm build` run as the normal user. The plugin must be present in both
-desktop bundles before the checkout is activated.
+revision above. The five overlay plugin source files are copied into
+`src/userplugins/vesktopVoiceOverlay/`. With the explicit opt-in, the two
+`VesktopVoiceControl` source files are also copied into
+`src/userplugins/vesktopVoiceControl/`. `pnpm install --frozen-lockfile` and
+`pnpm build` run as the normal user; every requested plugin must be present in
+both desktop bundles before the checkout is activated.
 
-The manager then enables only `plugins.VesktopVoiceOverlay.enabled` in
-`~/.config/Vencord/settings/settings.json`. The JSON is parsed structurally and
-written atomically; unrelated settings and plugin entries are preserved. A
-managed settings backup is restored on conservative uninstall when the file
-has not changed since installation.
+The manager enables `plugins.VesktopVoiceOverlay.enabled` in the settings
+directory of the selected client: `~/.config/Vencord/settings/settings.json`
+for native Discord and `~/.config/vesktop/settings/settings.json` for Vesktop.
+Vesktop sets `VENCORD_USER_DATA_DIR` to its own data directory, so its settings
+are not stored in the native Discord path. The opt-in `VesktopVoiceControl`
+setting shares the Vesktop settings file. Each JSON file is parsed structurally
+and written atomically; unrelated settings are preserved. Managed settings
+backups are restored on conservative uninstall only if the corresponding file
+has not changed since installation. Legacy Vesktop installs recorded with the
+old `~/.config/Vencord` path migrate that managed setting safely.
 
 Builds happen in a staging directory. The prior managed checkout is retained as
 `vencord.previous` until a replacement has built successfully. No arbitrary

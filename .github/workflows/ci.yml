@@ -98,6 +98,7 @@ jobs:
           bash -n install.sh tests/installer_test.sh
           shellcheck -x install.sh tests/installer_test.sh
           tests/installer_test.sh
+          python3 -m unittest discover -s integrations/omarchy-discord -p 'test_*.py'
 
   vencord-integration:
     needs: lint-and-test
@@ -131,6 +132,10 @@ jobs:
              plugin/src/resendCache.ts \
              plugin/src/voiceState.ts \
              /tmp/Vencord/src/userplugins/vesktopVoiceOverlay/
+          mkdir -p /tmp/Vencord/src/userplugins/vesktopVoiceControl
+          cp integrations/omarchy-discord/userplugin/index.ts \
+             integrations/omarchy-discord/userplugin/native.ts \
+             /tmp/Vencord/src/userplugins/vesktopVoiceControl/
 
       - name: Install Vencord dependencies
         run: pnpm install --frozen-lockfile
@@ -144,6 +149,8 @@ jobs:
         run: |
           grep -q "VesktopVoiceOverlay" /tmp/Vencord/dist/vencordDesktopRenderer.js
           grep -q "VesktopVoiceOverlay" /tmp/Vencord/dist/vencordDesktopMain.js
+          grep -q "VesktopVoiceControl" /tmp/Vencord/dist/vencordDesktopRenderer.js
+          grep -q "VesktopVoiceControl" /tmp/Vencord/dist/vencordDesktopMain.js
 
   build-release:
     needs: lint-and-test

@@ -30,6 +30,10 @@ case "${1:-}" in
         mkdir -p dist
         printf 'VesktopVoiceOverlay\n' > dist/vencordDesktopMain.js
         printf 'VesktopVoiceOverlay\n' > dist/vencordDesktopRenderer.js
+        if [[ -d src/userplugins/vesktopVoiceControl ]]; then
+            printf 'VesktopVoiceControl\n' >> dist/vencordDesktopMain.js
+            printf 'VesktopVoiceControl\n' >> dist/vencordDesktopRenderer.js
+        fi
         ;;
     *) exit 0 ;;
 esac
@@ -92,7 +96,13 @@ make_fixture() {
     CASE_SYSTEM="$CASE_ROOT/system"
     MOCK_LOG="$CASE_ROOT/calls.log"
     STATE_FILE_FIXTURE="$CASE_HOME/.local/state/discord-voice-overlay/state.env"
-    VENCORD_SETTINGS_FIXTURE="$CASE_HOME/.config/Vencord/settings/settings.json"
+    if [[ "$client" == vesktop || "$client" == both ]]; then
+        VENCORD_SETTINGS_FIXTURE="$CASE_HOME/.config/vesktop/settings/settings.json"
+        OMARCHY_VOICE_SETTINGS_FIXTURE="$VENCORD_SETTINGS_FIXTURE"
+    else
+        VENCORD_SETTINGS_FIXTURE="$CASE_HOME/.config/Vencord/settings/settings.json"
+        OMARCHY_VOICE_SETTINGS_FIXTURE="$CASE_HOME/.config/vesktop/settings/settings.json"
+    fi
     VENCORD_SETTINGS_BEFORE="$CASE_ROOT/vencord-settings.before"
     mkdir -p -- "$CASE_HOME/.config" "$CASE_HOME/.local/share" "$CASE_HOME/.local/state" \
         "$CASE_SYSTEM/usr/bin" "$CASE_SYSTEM/usr/lib" "$CASE_SYSTEM/usr/share" \
@@ -113,6 +123,20 @@ EOF
         printf '#!/bin/sh\n' > "$CASE_SYSTEM/usr/bin/vesktop"
         chmod 755 "$CASE_SYSTEM/usr/bin/vesktop"
         mkdir -p -- "$CASE_SYSTEM/usr/lib/vesktop"
+        mkdir -p -- "$(dirname -- "$OMARCHY_VOICE_SETTINGS_FIXTURE")"
+        cat > "$OMARCHY_VOICE_SETTINGS_FIXTURE" <<'EOF'
+{
+    "appearance": {"keep": true},
+    "uiElements": {"keep": true},
+    "plugins": {
+        "UnrelatedEnabled": {"enabled": true, "custom": "keep"},
+        "UnrelatedDisabled": {"enabled": false, "custom": "keep"},
+        "VesktopVoiceOverlay": {"enabled": false, "custom": "keep"},
+        "VesktopVoiceControl": {"enabled": false, "custom": "keep"}
+    }
+}
+EOF
+        cp -p "$VENCORD_SETTINGS_FIXTURE" "$VENCORD_SETTINGS_BEFORE"
     fi
     if [[ "$client" == discord || "$client" == both ]]; then
         printf '#!/bin/sh\n' > "$CASE_SYSTEM/usr/bin/discord"
@@ -146,7 +170,7 @@ EOF
     fi
     mkdir -p -- "$CASE_ROOT/vencord-source/src"
     printf '{"name":"vencord","private":true}\n' > "$CASE_ROOT/vencord-source/package.json"
-    printf 'dist/\n' > "$CASE_ROOT/vencord-source/.gitignore"
+    printf 'dist/\nsrc/userplugins/\n' > "$CASE_ROOT/vencord-source/.gitignore"
     git -C "$CASE_ROOT/vencord-source" init -q
     git -C "$CASE_ROOT/vencord-source" config user.email test@example.invalid
     git -C "$CASE_ROOT/vencord-source" config user.name test
@@ -159,7 +183,7 @@ EOF
 EOF
     chmod 755 "$CASE_ROOT/overlay"
     export CASE_HOME CASE_SYSTEM MOCK_LOG FAKE_VENCORD_REV STATE_FILE_FIXTURE \
-        VENCORD_SETTINGS_FIXTURE VENCORD_SETTINGS_BEFORE
+        VENCORD_SETTINGS_FIXTURE VENCORD_SETTINGS_BEFORE OMARCHY_VOICE_SETTINGS_FIXTURE
     export DVO_CALL_LOG="$MOCK_LOG"
     export PATH="$MOCK_BIN:/usr/bin:$PATH"
     export HOME="$CASE_HOME"
@@ -182,6 +206,11 @@ run_installer() {
 assert_plugin_enabled() {
     node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (d.plugins?.VesktopVoiceOverlay?.enabled !== true) process.exit(1)' "$1" ||
         fail "VesktopVoiceOverlay is not enabled in $1"
+}
+
+assert_omarchy_voice_plugin_enabled() {
+    node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (d.plugins?.VesktopVoiceControl?.enabled !== true) process.exit(1)' "$1" ||
+        fail "VesktopVoiceControl is not enabled in $1"
 }
 
 assert_plugin_settings_preserved() {
@@ -255,6 +284,34 @@ case_vesktop_lifecycle() {
     pass 'Vesktop install, repeat, update, repair, uninstall, and config preservation'
 }
 
+case_omarchy_voice_controls_lifecycle() {
+    make_fixture vesktop
+    cp -p "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before"
+    run_installer install --client vesktop --omarchy-voice-controls --yes
+    assert_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
+    assert_contains 'VesktopVoiceControl' "$DVO_MANAGED_ROOT/vencord/dist/vencordDesktopMain.js"
+    assert_contains 'VesktopVoiceControl' "$DVO_MANAGED_ROOT/vencord/dist/vencordDesktopRenderer.js"
+    assert_omarchy_voice_plugin_enabled "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    assert_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
+    assert_file "$DVO_MANAGED_ROOT/omarchy-discord/rpc-adapter.py"
+    assert_contains 'omarchy_voice_controls=1' "$STATE_FILE_FIXTURE"
+
+    run_installer update
+    assert_omarchy_voice_plugin_enabled "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    run_installer update --no-omarchy-voice-controls
+    assert_contains 'omarchy_voice_controls=0' "$STATE_FILE_FIXTURE"
+    node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (d.plugins.VesktopVoiceControl.enabled !== false || d.appearance.keep !== true) process.exit(1)' "$OMARCHY_VOICE_SETTINGS_FIXTURE" ||
+        fail 'disabling the optional bridge changed unrelated Vesktop settings'
+    assert_not_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
+    assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
+    assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/rpc-adapter.py"
+
+    run_installer uninstall
+    cmp -s "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before" ||
+        fail 'optional voice-control setting was not restored on uninstall'
+    pass 'opt-in Vesktop bridge build, update, disable, and settings rollback'
+}
+
 case_discord_lifecycle() {
     make_fixture discord
     run_installer install --client discord --yes
@@ -306,6 +363,42 @@ case_repair_preserves_absent_settings_ownership() {
     run_installer uninstall
     assert_not_file "$VENCORD_SETTINGS_FIXTURE"
     pass 'repair preserves ownership when Vencord settings were initially absent'
+}
+
+case_migrate_legacy_vesktop_settings_path() {
+    make_fixture vesktop
+    run_installer install --client vesktop --yes
+    cp -p "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.valid"
+
+    legacy_settings="$CASE_HOME/.config/Vencord/settings/settings.json"
+    mkdir -p -- "$(dirname -- "$legacy_settings")"
+    printf '{\n    "plugins": {"VesktopVoiceOverlay": {"enabled": true}}\n}\n' > "$legacy_settings"
+    legacy_hash=$(sha256sum "$legacy_settings" | cut -d' ' -f1)
+    node - "$STATE_FILE_FIXTURE" "$legacy_hash" <<'NODE'
+const fs = require("fs");
+const path = process.argv[2];
+const hash = process.argv[3];
+let text = fs.readFileSync(path, "utf8");
+text = text.replace(/^vencord_settings_path=.*$/m, `vencord_settings_path=${process.env.XDG_CONFIG_HOME}/Vencord/settings/settings.json`);
+text = text.replace(/^vencord_settings_changed=.*$/m, "vencord_settings_changed=1");
+text = text.replace(/^vencord_settings_had_file=.*$/m, "vencord_settings_had_file=0");
+text = text.replace(/^vencord_settings_managed_hash=.*$/m, `vencord_settings_managed_hash=${hash}`);
+fs.writeFileSync(path, text);
+NODE
+
+    printf '{ malformed\n' > "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    if run_installer repair > "$CASE_ROOT/malformed-migration" 2>&1; then
+        fail 'malformed target settings unexpectedly migrated'
+    fi
+    assert_file "$legacy_settings"
+    cp -p "$CASE_ROOT/voice-settings.valid" "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    run_installer repair --dry-run
+    assert_file "$legacy_settings"
+    run_installer repair
+    assert_not_file "$legacy_settings"
+    assert_contains "vencord_settings_path=$OMARCHY_VOICE_SETTINGS_FIXTURE" "$STATE_FILE_FIXTURE"
+    assert_plugin_enabled "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    pass 'legacy Vesktop Vencord settings are migrated to Vesktop data settings safely'
 }
 
 case_malformed_plugin_settings() {
@@ -368,6 +461,16 @@ case_failure_paths() {
     export DVO_FAIL_SYSTEMCTL=1
     if run_installer install --client vesktop --yes > "$CASE_ROOT/service-failure" 2>&1; then fail 'service failure unexpectedly succeeded'; fi
     assert_not_file "$STATE_FILE_FIXTURE"
+
+    make_fixture vesktop
+    cp -p "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before"
+    export DVO_FAIL_SYSTEMCTL=1
+    if run_installer install --client vesktop --omarchy-voice-controls --yes > "$CASE_ROOT/voice-service-failure" 2>&1; then
+        fail 'voice bridge service failure unexpectedly succeeded'
+    fi
+    cmp -s "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before" ||
+        fail 'failed opt-in install did not roll back the shared Vesktop settings file'
+    assert_not_file "$STATE_FILE_FIXTURE"
     pass 'build and service failures do not publish installer state'
 }
 
@@ -389,10 +492,12 @@ case_checksum_and_path_guards() {
 case_no_client
 case_invalid_overrides
 case_vesktop_lifecycle
+case_omarchy_voice_controls_lifecycle
 case_discord_lifecycle
 case_discord_injection_failure
 case_missing_plugin_settings
 case_repair_preserves_absent_settings_ownership
+case_migrate_legacy_vesktop_settings_path
 case_malformed_plugin_settings
 case_both_requires_selection
 case_existing_conflicts

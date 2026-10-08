@@ -26,10 +26,15 @@ VENCORD_DIST="${VENCORD_ROOT}/dist"
 CURRENT_OVERLAY="${MANAGED_ROOT}/current/vesktop-voice-overlay"
 VENCORD_SETTINGS_PATH="${CONFIG_HOME}/Vencord/settings/settings.json"
 VENCORD_SETTINGS_BACKUP="${BACKUP_ROOT}/vencord-settings.json"
+OMARCHY_VOICE_SETTINGS_PATH="${CONFIG_HOME}/vesktop/settings/settings.json"
+OMARCHY_VOICE_SETTINGS_BACKUP="${BACKUP_ROOT}/vesktop-voice-settings.json"
+OMARCHY_INTEGRATION_ROOT="${MANAGED_ROOT}/omarchy-discord"
 
 DRY_RUN=0
 ASSUME_YES=0
 REQUESTED_CLIENT=""
+REQUESTED_OMARCHY_VOICE_CONTROLS=""
+OMARCHY_VOICE_CONTROLS_ENABLED=0
 SELECTED_CLIENT=""
 OVERLAY_EXECUTABLE=""
 OVERLAY_METHOD=""
@@ -44,6 +49,12 @@ VENCORD_SETTINGS_ORIGINAL_HASH=""
 VENCORD_SETTINGS_MANAGED_HASH=""
 VENCORD_SETTINGS_ROLLBACK_PATH=""
 VENCORD_SETTINGS_MODIFIED_THIS_RUN=0
+OMARCHY_VOICE_SETTINGS_CHANGED=0
+OMARCHY_VOICE_SETTINGS_HAD_FILE=0
+OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH=""
+OMARCHY_VOICE_SETTINGS_MANAGED_HASH=""
+OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH=""
+OMARCHY_VOICE_SETTINGS_MODIFIED_THIS_RUN=0
 INSTALL_COMPLETED=0
 
 CLIENT_VESKTOP_NATIVE=0
@@ -67,6 +78,8 @@ Usage:
 
 Options:
   --client vesktop|discord  Select the client to manage
+  --omarchy-voice-controls Enable the optional Vesktop voice bridge for omarchy-discord
+  --no-omarchy-voice-controls Disable that optional integration on update/repair
   --yes                     Confirm client configuration and replacement
   --dry-run                 Show changes without modifying the system
   --version                Show installer version
@@ -81,6 +94,14 @@ version() { printf '%s installer %s\n' "$PRODUCT_NAME" "$INSTALLER_VERSION"; }
 
 cleanup() {
     local path
+    if (( OMARCHY_VOICE_SETTINGS_MODIFIED_THIS_RUN && !INSTALL_COMPLETED )); then
+        if [[ -n "$OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH" && -f "$OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH" ]]; then
+            mkdir -p -- "$(dirname -- "$OMARCHY_VOICE_SETTINGS_PATH")"
+            cp -p -- "$OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH" "$OMARCHY_VOICE_SETTINGS_PATH"
+        elif (( ! OMARCHY_VOICE_SETTINGS_HAD_FILE )); then
+            rm -f -- "$OMARCHY_VOICE_SETTINGS_PATH"
+        fi
+    fi
     if (( VENCORD_SETTINGS_MODIFIED_THIS_RUN && !INSTALL_COMPLETED )); then
         if [[ -n "$VENCORD_SETTINGS_ROLLBACK_PATH" && -f "$VENCORD_SETTINGS_ROLLBACK_PATH" ]]; then
             mkdir -p -- "$(dirname -- "$VENCORD_SETTINGS_PATH")"
@@ -163,12 +184,15 @@ state_get() {
 }
 
 state_is_valid() {
-    local client overlay service vencord settings_path settings_changed settings_had_file
+    local client overlay service vencord settings_path expected_settings_path settings_changed settings_had_file voice_controls voice_settings_path voice_settings_changed voice_settings_had_file
     [[ -f "$STATE_FILE" ]] || return 1
     [[ "$(state_get schema 2>/dev/null || true)" == "1" ]] || return 1
     [[ "$(state_get managed_root 2>/dev/null || true)" == "$MANAGED_ROOT" ]] || return 1
     client=$(state_get client 2>/dev/null || true)
     [[ "$client" == vesktop || "$client" == discord ]] || return 1
+    voice_controls=$(state_get omarchy_voice_controls 2>/dev/null || printf '0')
+    [[ "$voice_controls" == 0 || "$voice_controls" == 1 ]] || return 1
+    [[ "$voice_controls" == 0 || "$client" == vesktop ]] || return 1
     overlay=$(state_get overlay_path 2>/dev/null || true)
     if [[ "$overlay" == "$MANAGED_ROOT/"* ]]; then
         safe_managed_path "$overlay" || return 1
@@ -181,7 +205,9 @@ state_is_valid() {
     vencord=$(state_get vencord_root 2>/dev/null || true)
     [[ "$vencord" == "$VENCORD_ROOT" ]] || return 1
     settings_path=$(state_get vencord_settings_path 2>/dev/null || true)
-    [[ "$settings_path" == "$VENCORD_SETTINGS_PATH" ]] || return 1
+    expected_settings_path=$(settings_path_for_client "$client")
+    [[ "$settings_path" == "$expected_settings_path" ||
+        ( "$client" == vesktop && "$settings_path" == "$CONFIG_HOME/Vencord/settings/settings.json" ) ]] || return 1
     settings_changed=$(state_get vencord_settings_changed 2>/dev/null || true)
     settings_had_file=$(state_get vencord_settings_had_file 2>/dev/null || true)
     [[ "$settings_changed" == 0 || "$settings_changed" == 1 ]] || return 1
@@ -193,10 +219,64 @@ state_is_valid() {
             [[ -f "$VENCORD_SETTINGS_BACKUP" ]] || return 1
         fi
     fi
+    voice_settings_changed=$(state_get omarchy_voice_settings_changed 2>/dev/null || printf '0')
+    voice_settings_had_file=$(state_get omarchy_voice_settings_had_file 2>/dev/null || printf '0')
+    [[ "$voice_settings_changed" == 0 || "$voice_settings_changed" == 1 ]] || return 1
+    [[ "$voice_settings_had_file" == 0 || "$voice_settings_had_file" == 1 ]] || return 1
+    if [[ "$voice_settings_changed" == 1 ]]; then
+        voice_settings_path=$(state_get omarchy_voice_settings_path 2>/dev/null || true)
+        [[ "$voice_settings_path" == "$OMARCHY_VOICE_SETTINGS_PATH" ]] || return 1
+        [[ "$(state_get omarchy_voice_settings_managed_hash 2>/dev/null || true)" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+        if [[ "$voice_settings_had_file" == 1 ]]; then
+            [[ "$(state_get omarchy_voice_settings_original_hash 2>/dev/null || true)" =~ ^[[:xdigit:]]{64}$ ]] || return 1
+            [[ ! -L "$OMARCHY_VOICE_SETTINGS_BACKUP" && -f "$OMARCHY_VOICE_SETTINGS_BACKUP" ]] || return 1
+        fi
+    fi
     if [[ "$client" == discord ]]; then
         discord_target_is_safe "$(state_get discord_target 2>/dev/null || true)" || return 1
         [[ "$(state_get discord_original_hash 2>/dev/null || true)" =~ ^[[:xdigit:]]{64}$ ]] || return 1
     fi
+}
+
+settings_path_for_client() {
+    if [[ "$1" == vesktop ]]; then
+        printf '%s\n' "$CONFIG_HOME/vesktop/settings/settings.json"
+    else
+        printf '%s\n' "$CONFIG_HOME/Vencord/settings/settings.json"
+    fi
+}
+
+select_vencord_settings_path() {
+    local client="$1" target recorded setting_state
+    target=$(settings_path_for_client "$client")
+    if [[ -f "$STATE_FILE" ]]; then
+        recorded=$(state_get vencord_settings_path 2>/dev/null || true)
+        if [[ "$recorded" != "$target" ]]; then
+            if [[ "$recorded" == "$CONFIG_HOME/Vencord/settings/settings.json" ||
+                "$recorded" == "$CONFIG_HOME/vesktop/settings/settings.json" ]]; then
+                VENCORD_SETTINGS_PATH="$target"
+                if ! setting_state=$(vencord_plugin_setting_state); then
+                    VENCORD_SETTINGS_PATH="$recorded"
+                    die "Vencord settings are malformed or unsafe; refusing migration: $target"
+                fi
+                VENCORD_SETTINGS_PATH="$recorded"
+                load_vencord_settings_ownership
+                if (( DRY_RUN )); then
+                    info "[dry-run] migrate managed Vencord settings from $recorded to $target"
+                    VENCORD_SETTINGS_PATH="$target"
+                    return 0
+                fi
+                restore_managed_vencord_plugin
+                VENCORD_SETTINGS_CHANGED=0
+                VENCORD_SETTINGS_HAD_FILE=0
+                VENCORD_SETTINGS_ORIGINAL_HASH=""
+                VENCORD_SETTINGS_MANAGED_HASH=""
+            else
+                die "stored Vencord settings path is not migratable: $recorded"
+            fi
+        fi
+    fi
+    VENCORD_SETTINGS_PATH="$target"
 }
 
 ensure_state_usable() {
@@ -212,7 +292,7 @@ write_state() {
     mkdir -p -- "$STATE_DIR"
     chmod 700 "$STATE_DIR"
     tmp=$(mktemp "$STATE_DIR/.state.XXXXXX")
-    printf 'schema=1\ninstaller_version=%s\noverlay_version=%s\noverlay_path=%s\noverlay_method=%s\nclient=%s\nvencord_root=%s\nvencord_dist=%s\nvencord_revision=%s\nservice_path=%s\nvesktop_state_path=%s\nvesktop_state_had_file=%s\ndiscord_target=%s\ndiscord_original_hash=%s\nintegration_method=%s\nmanaged_root=%s\nvencord_settings_path=%s\nvencord_settings_changed=%s\nvencord_settings_had_file=%s\nvencord_settings_original_hash=%s\nvencord_settings_managed_hash=%s\n' \
+    printf 'schema=1\ninstaller_version=%s\noverlay_version=%s\noverlay_path=%s\noverlay_method=%s\nclient=%s\nvencord_root=%s\nvencord_dist=%s\nvencord_revision=%s\nservice_path=%s\nvesktop_state_path=%s\nvesktop_state_had_file=%s\ndiscord_target=%s\ndiscord_original_hash=%s\nintegration_method=%s\nmanaged_root=%s\nvencord_settings_path=%s\nvencord_settings_changed=%s\nvencord_settings_had_file=%s\nvencord_settings_original_hash=%s\nvencord_settings_managed_hash=%s\nomarchy_voice_controls=%s\nomarchy_voice_settings_path=%s\nomarchy_voice_settings_changed=%s\nomarchy_voice_settings_had_file=%s\nomarchy_voice_settings_original_hash=%s\nomarchy_voice_settings_managed_hash=%s\n' \
         "$INSTALLER_VERSION" "$OVERLAY_VERSION" "$OVERLAY_EXECUTABLE" "$OVERLAY_METHOD" \
         "$SELECTED_CLIENT" "$VENCORD_ROOT" "$VENCORD_DIST" "$VENCORD_REV" \
         "$SERVICE_PATH" "$VESKTOP_STATE_PATH" "$VESKTOP_STATE_HAD_FILE" \
@@ -220,7 +300,10 @@ write_state() {
         "$( [[ "$SELECTED_CLIENT" == "discord" ]] && printf 'vencord-official-inject' || printf 'vesktop-state' )" \
         "$MANAGED_ROOT" "$VENCORD_SETTINGS_PATH" "$VENCORD_SETTINGS_CHANGED" \
         "$VENCORD_SETTINGS_HAD_FILE" "$VENCORD_SETTINGS_ORIGINAL_HASH" \
-        "$VENCORD_SETTINGS_MANAGED_HASH" > "$tmp"
+        "$VENCORD_SETTINGS_MANAGED_HASH" "$OMARCHY_VOICE_CONTROLS_ENABLED" \
+        "$OMARCHY_VOICE_SETTINGS_PATH" "$OMARCHY_VOICE_SETTINGS_CHANGED" \
+        "$OMARCHY_VOICE_SETTINGS_HAD_FILE" "$OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH" \
+        "$OMARCHY_VOICE_SETTINGS_MANAGED_HASH" > "$tmp"
     chmod 600 "$tmp"
     mv -f -- "$tmp" "$STATE_FILE"
 }
@@ -446,6 +529,8 @@ plugin_files=(
     voiceState.ts
 )
 
+omarchy_voice_plugin_files=(index.ts native.ts)
+
 plugin_hash() {
     local file
     for file in "${plugin_files[@]}"; do
@@ -454,15 +539,68 @@ plugin_hash() {
     done | sha256sum | awk '{print $1}'
 }
 
+omarchy_voice_plugin_hash() {
+    local file
+    for file in "${omarchy_voice_plugin_files[@]}"; do
+        [[ -f "$SCRIPT_DIR/integrations/omarchy-discord/userplugin/$file" ]] ||
+            die "missing Vesktop voice-control plugin source: $file"
+        sha256sum -- "$SCRIPT_DIR/integrations/omarchy-discord/userplugin/$file"
+    done | sha256sum | awk '{print $1}'
+}
+
+omarchy_voice_plugin_matches() {
+    local file
+    for file in "${omarchy_voice_plugin_files[@]}"; do
+        cmp -s -- "$SCRIPT_DIR/integrations/omarchy-discord/userplugin/$file" \
+            "$VENCORD_ROOT/src/userplugins/vesktopVoiceControl/$file" || return 1
+    done
+}
+
+resolve_omarchy_voice_controls() {
+    local stored="" plugin_enabled="missing"
+    if [[ -n "$REQUESTED_OMARCHY_VOICE_CONTROLS" ]]; then
+        OMARCHY_VOICE_CONTROLS_ENABLED="$REQUESTED_OMARCHY_VOICE_CONTROLS"
+    elif [[ -f "$STATE_FILE" ]]; then
+        stored=$(state_get omarchy_voice_controls 2>/dev/null || true)
+        if [[ "$stored" == 0 || "$stored" == 1 ]]; then
+            OMARCHY_VOICE_CONTROLS_ENABLED="$stored"
+        elif [[ "$SELECTED_CLIENT" == vesktop ]] && omarchy_voice_plugin_matches; then
+            plugin_enabled=$(omarchy_voice_plugin_setting_state 2>/dev/null || true)
+            [[ "$plugin_enabled" == enabled ]] && OMARCHY_VOICE_CONTROLS_ENABLED=1
+        fi
+    fi
+    if [[ "$SELECTED_CLIENT" != vesktop && "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 &&
+        -z "$REQUESTED_OMARCHY_VOICE_CONTROLS" ]]; then
+        OMARCHY_VOICE_CONTROLS_ENABLED=0
+        REQUESTED_OMARCHY_VOICE_CONTROLS=0
+    fi
+    [[ "$SELECTED_CLIENT" == vesktop || "$OMARCHY_VOICE_CONTROLS_ENABLED" == 0 ]] ||
+        die 'Vesktop voice controls require --client vesktop'
+}
+
 managed_vencord_valid() {
-    local marker revision hash
+    local marker revision hash voice_enabled voice_hash
     marker="$VENCORD_ROOT/.discord-voice-overlay-build"
     [[ -f "$marker" && -d "$VENCORD_DIST" ]] || return 1
     revision=$(awk -F= '$1 == "revision" {print $2}' "$marker")
     hash=$(awk -F= '$1 == "plugin_hash" {print $2}' "$marker")
     [[ "$revision" == "$VENCORD_REV" && "$hash" == "$(plugin_hash)" ]] || return 1
+    voice_enabled=$(awk -F= '$1 == "omarchy_voice_controls" {print $2}' "$marker")
+    voice_enabled=${voice_enabled:-0}
+    [[ "$voice_enabled" == "$OMARCHY_VOICE_CONTROLS_ENABLED" ]] || return 1
+    if [[ "$voice_enabled" == 1 ]]; then
+        voice_hash=$(awk -F= '$1 == "omarchy_voice_plugin_hash" {print $2}' "$marker")
+        [[ "$voice_hash" == "$(omarchy_voice_plugin_hash)" ]] || return 1
+        omarchy_voice_plugin_matches || return 1
+    fi
     [[ -f "$VENCORD_DIST/vencordDesktopMain.js" &&
         -f "$VENCORD_DIST/vencordDesktopRenderer.js" ]] || return 1
+    if [[ "$voice_enabled" == 1 ]]; then
+        grep -Fq 'VesktopVoiceControl' "$VENCORD_DIST/vencordDesktopMain.js" || return 1
+        grep -Fq 'VesktopVoiceControl' "$VENCORD_DIST/vencordDesktopRenderer.js" || return 1
+    elif [[ -e "$VENCORD_ROOT/src/userplugins/vesktopVoiceControl" ]]; then
+        return 1
+    fi
     local file
     for file in "${plugin_files[@]}"; do
         cmp -s -- "$SCRIPT_DIR/plugin/src/$file" "$VENCORD_ROOT/src/userplugins/vesktopVoiceOverlay/$file" || return 1
@@ -478,7 +616,15 @@ managed_vencord_safe_to_replace() {
     if [[ -d "$VENCORD_ROOT/src/userplugins" ]]; then
         for entry in "$VENCORD_ROOT/src/userplugins"/*; do
             [[ -e "$entry" ]] || continue
-            [[ "$(basename -- "$entry")" == vesktopVoiceOverlay ]] || return 1
+            case "$(basename -- "$entry")" in
+                vesktopVoiceOverlay) ;;
+                vesktopVoiceControl)
+                    [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ||
+                        "$REQUESTED_OMARCHY_VOICE_CONTROLS" == 0 ]] || return 1
+                    omarchy_voice_plugin_matches || return 1
+                    ;;
+                *) return 1 ;;
+            esac
         done
     fi
     while IFS=' ' read -r _ path; do
@@ -490,16 +636,24 @@ managed_vencord_safe_to_replace() {
             src/userplugins/vesktopVoiceOverlay/protocol.ts|\
             src/userplugins/vesktopVoiceOverlay/resendCache.ts|\
             src/userplugins/vesktopVoiceOverlay/voiceState.ts) ;;
+            src/userplugins/vesktopVoiceControl/index.ts|\
+            src/userplugins/vesktopVoiceControl/native.ts)
+                [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ||
+                    "$REQUESTED_OMARCHY_VOICE_CONTROLS" == 0 ]] || return 1
+                ;;
             *) return 1 ;;
         esac
     done < <(git -C "$VENCORD_ROOT" status --porcelain)
     for file in "${plugin_files[@]}"; do
         cmp -s -- "$SCRIPT_DIR/plugin/src/$file" "$VENCORD_ROOT/src/userplugins/vesktopVoiceOverlay/$file" || return 1
     done
+    if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then
+        omarchy_voice_plugin_matches || return 1
+    fi
 }
 
 build_managed_vencord() {
-    local stage stage_v remote actual marker hash
+    local stage stage_v remote actual marker hash voice_hash
     need_cmd git
     need_cmd pnpm
     need_cmd sha256sum
@@ -539,14 +693,29 @@ build_managed_vencord() {
     for file in "${plugin_files[@]}"; do
         cp -- "$SCRIPT_DIR/plugin/src/$file" "$stage_v/src/userplugins/vesktopVoiceOverlay/$file"
     done
+    if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then
+        mkdir -p -- "$stage_v/src/userplugins/vesktopVoiceControl"
+        for file in "${omarchy_voice_plugin_files[@]}"; do
+            cp -- "$SCRIPT_DIR/integrations/omarchy-discord/userplugin/$file" \
+                "$stage_v/src/userplugins/vesktopVoiceControl/$file"
+        done
+    fi
     (cd "$stage_v" && VENCORD_USER_DATA_DIR="$MANAGED_ROOT/vencord-data" VENCORD_DEV_INSTALL=1 pnpm install --frozen-lockfile)
     (cd "$stage_v" && VENCORD_USER_DATA_DIR="$MANAGED_ROOT/vencord-data" VENCORD_DEV_INSTALL=1 pnpm build)
     printf '{}\n' > "$stage_v/dist/package.json"
     grep -Fq 'VesktopVoiceOverlay' "$stage_v/dist/vencordDesktopMain.js" || die 'plugin missing from Vencord main bundle'
     grep -Fq 'VesktopVoiceOverlay' "$stage_v/dist/vencordDesktopRenderer.js" || die 'plugin missing from Vencord renderer bundle'
+    if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then
+        grep -Fq 'VesktopVoiceControl' "$stage_v/dist/vencordDesktopMain.js" || die 'VesktopVoiceControl missing from Vencord main bundle'
+        grep -Fq 'VesktopVoiceControl' "$stage_v/dist/vencordDesktopRenderer.js" || die 'VesktopVoiceControl missing from Vencord renderer bundle'
+        voice_hash=$(omarchy_voice_plugin_hash)
+    else
+        voice_hash=""
+    fi
     hash=$(plugin_hash)
     marker="$stage_v/.discord-voice-overlay-build"
-    printf 'revision=%s\nplugin_hash=%s\n' "$VENCORD_REV" "$hash" > "$marker"
+    printf 'revision=%s\nplugin_hash=%s\nomarchy_voice_controls=%s\nomarchy_voice_plugin_hash=%s\n' \
+        "$VENCORD_REV" "$hash" "$OMARCHY_VOICE_CONTROLS_ENABLED" "$voice_hash" > "$marker"
     chmod 644 "$marker"
     if [[ -e "$VENCORD_ROOT" ]]; then
         remove_owned_tree "$MANAGED_ROOT/vencord.previous"
@@ -564,6 +733,38 @@ ensure_managed_vencord() {
     fi
     build_managed_vencord
     info "Vencord: managed build ready at $VENCORD_DIST."
+}
+
+ensure_omarchy_voice_assets() {
+    local file tmp
+    (( OMARCHY_VOICE_CONTROLS_ENABLED )) || return 0
+    if (( DRY_RUN )); then
+        info "[dry-run] install the optional omarchy-discord bridge under $OMARCHY_INTEGRATION_ROOT"
+        return 0
+    fi
+    [[ ! -L "$OMARCHY_INTEGRATION_ROOT" ]] || die 'omarchy-discord integration path must not be a symlink'
+    mkdir -p -- "$OMARCHY_INTEGRATION_ROOT"
+    for file in vbridge.py rpc-adapter.py; do
+        [[ ! -L "$OMARCHY_INTEGRATION_ROOT/$file" ]] || die "refusing to overwrite symlink: $OMARCHY_INTEGRATION_ROOT/$file"
+        tmp=$(mktemp "$OMARCHY_INTEGRATION_ROOT/.${file}.XXXXXX")
+        cp -- "$SCRIPT_DIR/integrations/omarchy-discord/$file" "$tmp"
+        chmod 755 "$tmp"
+        mv -f -- "$tmp" "$OMARCHY_INTEGRATION_ROOT/$file"
+    done
+}
+
+remove_omarchy_voice_assets() {
+    local file
+    if (( DRY_RUN )); then
+        info "[dry-run] remove the optional omarchy-discord bridge from $OMARCHY_INTEGRATION_ROOT"
+        return 0
+    fi
+    [[ ! -L "$OMARCHY_INTEGRATION_ROOT" ]] || die 'omarchy-discord integration path must not be a symlink'
+    for file in vbridge.py rpc-adapter.py; do
+        [[ ! -L "$OMARCHY_INTEGRATION_ROOT/$file" ]] || die "refusing to remove symlink: $OMARCHY_INTEGRATION_ROOT/$file"
+        rm -f -- "$OMARCHY_INTEGRATION_ROOT/$file"
+    done
+    rmdir -- "$OMARCHY_INTEGRATION_ROOT" 2>/dev/null || true
 }
 
 vencord_plugin_setting_state() {
@@ -665,6 +866,10 @@ NODE
 restore_managed_vencord_plugin() {
     local current_hash
     [[ "$VENCORD_SETTINGS_CHANGED" == 1 ]] || return 0
+    if (( DRY_RUN )); then
+        info "[dry-run] restore managed Vencord setting in $VENCORD_SETTINGS_PATH"
+        return 0
+    fi
     [[ ! -L "$VENCORD_SETTINGS_PATH" ]] || die "refusing to restore symlinked Vencord settings: $VENCORD_SETTINGS_PATH"
     [[ -f "$VENCORD_SETTINGS_PATH" ]] || { warn 'managed Vencord settings file is missing; leaving it untouched'; return 0; }
     current_hash=$(sha256_file "$VENCORD_SETTINGS_PATH")
@@ -677,6 +882,119 @@ restore_managed_vencord_plugin() {
         cp -p -- "$VENCORD_SETTINGS_BACKUP" "$VENCORD_SETTINGS_PATH"
     else
         rm -f -- "$VENCORD_SETTINGS_PATH"
+    fi
+}
+
+omarchy_voice_plugin_setting_state() {
+    [[ -e "$OMARCHY_VOICE_SETTINGS_PATH" ]] || { printf 'missing\n'; return 0; }
+    [[ ! -L "$OMARCHY_VOICE_SETTINGS_PATH" && -f "$OMARCHY_VOICE_SETTINGS_PATH" ]] || return 1
+    node -e '
+const fs = require("fs");
+const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings root is not an object");
+if (data.plugins !== undefined && (!data.plugins || typeof data.plugins !== "object" || Array.isArray(data.plugins))) throw new Error("plugins is not an object");
+const plugin = data.plugins?.VesktopVoiceControl;
+if (plugin !== undefined && (!plugin || typeof plugin !== "object" || Array.isArray(plugin))) throw new Error("plugin settings are not an object");
+if (plugin?.enabled !== undefined && typeof plugin.enabled !== "boolean") throw new Error("plugin enabled setting is not boolean");
+process.stdout.write(plugin?.enabled === true ? "enabled\n" : plugin?.enabled === false ? "disabled\n" : "missing\n");
+' "$OMARCHY_VOICE_SETTINGS_PATH"
+}
+
+load_omarchy_voice_settings_ownership() {
+    if [[ -f "$STATE_FILE" ]]; then
+        OMARCHY_VOICE_SETTINGS_CHANGED=$(state_get omarchy_voice_settings_changed 2>/dev/null || printf '0')
+        OMARCHY_VOICE_SETTINGS_HAD_FILE=$(state_get omarchy_voice_settings_had_file 2>/dev/null || printf '0')
+        OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH=$(state_get omarchy_voice_settings_original_hash 2>/dev/null || true)
+        OMARCHY_VOICE_SETTINGS_MANAGED_HASH=$(state_get omarchy_voice_settings_managed_hash 2>/dev/null || true)
+    fi
+}
+
+set_omarchy_voice_plugin_setting() {
+    local desired="$1" state current_hash rollback tmp mode
+    [[ "$desired" == true || "$desired" == false ]] || die 'invalid VesktopVoiceControl setting'
+    if (( DRY_RUN )); then
+        info "[dry-run] set VesktopVoiceControl.enabled=$desired in $OMARCHY_VOICE_SETTINGS_PATH"
+        return 0
+    fi
+    need_cmd node
+    if ! state=$(omarchy_voice_plugin_setting_state); then
+        die "Vesktop Vencord settings are malformed; refusing to overwrite: $OMARCHY_VOICE_SETTINGS_PATH"
+    fi
+    [[ "$state" == enabled && "$desired" == true || "$state" == disabled && "$desired" == false ]] && return 0
+
+    OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH=""
+    if [[ -e "$OMARCHY_VOICE_SETTINGS_PATH" ]]; then
+        [[ ! -L "$OMARCHY_VOICE_SETTINGS_PATH" && -f "$OMARCHY_VOICE_SETTINGS_PATH" ]] ||
+            die "Vesktop Vencord settings path is not a regular file: $OMARCHY_VOICE_SETTINGS_PATH"
+        [[ ! -L "$OMARCHY_VOICE_SETTINGS_BACKUP" ]] || die 'Vesktop settings backup path is a symlink'
+        current_hash=$(sha256_file "$OMARCHY_VOICE_SETTINGS_PATH")
+        if [[ "$OMARCHY_VOICE_SETTINGS_CHANGED" != 1 ||
+            "$current_hash" != "$OMARCHY_VOICE_SETTINGS_MANAGED_HASH" ]]; then
+            OMARCHY_VOICE_SETTINGS_HAD_FILE=1
+            OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH="$current_hash"
+            mkdir -p -- "$BACKUP_ROOT"
+            cp -p -- "$OMARCHY_VOICE_SETTINGS_PATH" "$OMARCHY_VOICE_SETTINGS_BACKUP"
+        fi
+        rollback=$(mktemp "$MANAGED_ROOT/.vesktop-settings-rollback.XXXXXX")
+        TEMP_PATHS+=("$rollback")
+        cp -p -- "$OMARCHY_VOICE_SETTINGS_PATH" "$rollback"
+        OMARCHY_VOICE_SETTINGS_ROLLBACK_PATH="$rollback"
+    else
+        OMARCHY_VOICE_SETTINGS_HAD_FILE=0
+        OMARCHY_VOICE_SETTINGS_ORIGINAL_HASH=""
+        rm -f -- "$OMARCHY_VOICE_SETTINGS_BACKUP"
+    fi
+
+    mkdir -p -- "$(dirname -- "$OMARCHY_VOICE_SETTINGS_PATH")"
+    mode=600
+    if [[ -f "$OMARCHY_VOICE_SETTINGS_PATH" ]]; then
+        mode=$(stat -c '%a' "$OMARCHY_VOICE_SETTINGS_PATH")
+    fi
+    tmp=$(mktemp "$(dirname -- "$OMARCHY_VOICE_SETTINGS_PATH")/.settings.XXXXXX")
+    node - "$OMARCHY_VOICE_SETTINGS_PATH" "$tmp" "$mode" "$desired" <<'NODE'
+const fs = require("fs");
+const [path, tmp, modeText, desiredText] = process.argv.slice(2);
+let data = {};
+if (fs.existsSync(path)) {
+    data = JSON.parse(fs.readFileSync(path, "utf8"));
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("settings root is not an object");
+}
+if (data.plugins !== undefined && (!data.plugins || typeof data.plugins !== "object" || Array.isArray(data.plugins))) throw new Error("plugins is not an object");
+if (data.plugins?.VesktopVoiceControl !== undefined && (!data.plugins.VesktopVoiceControl || typeof data.plugins.VesktopVoiceControl !== "object" || Array.isArray(data.plugins.VesktopVoiceControl))) throw new Error("plugin settings are not an object");
+data.plugins ??= {};
+data.plugins.VesktopVoiceControl ??= {};
+data.plugins.VesktopVoiceControl.enabled = desiredText === "true";
+const mode = Number.parseInt(modeText, 8);
+fs.writeFileSync(tmp, JSON.stringify(data, null, 4) + "\n", { mode });
+fs.chmodSync(tmp, mode);
+fs.renameSync(tmp, path);
+NODE
+    OMARCHY_VOICE_SETTINGS_CHANGED=1
+    OMARCHY_VOICE_SETTINGS_MODIFIED_THIS_RUN=1
+    OMARCHY_VOICE_SETTINGS_MANAGED_HASH=$(sha256_file "$OMARCHY_VOICE_SETTINGS_PATH")
+    [[ "$(omarchy_voice_plugin_setting_state)" == "$([[ "$desired" == true ]] && printf enabled || printf disabled)" ]] ||
+        die 'failed to update VesktopVoiceControl setting'
+}
+
+restore_omarchy_voice_plugin_setting() {
+    local current_hash
+    [[ "$OMARCHY_VOICE_SETTINGS_CHANGED" == 1 ]] || return 0
+    if (( DRY_RUN )); then
+        info "[dry-run] restore managed Vesktop voice setting in $OMARCHY_VOICE_SETTINGS_PATH"
+        return 0
+    fi
+    [[ ! -L "$OMARCHY_VOICE_SETTINGS_PATH" ]] || die "refusing to restore symlinked Vesktop settings: $OMARCHY_VOICE_SETTINGS_PATH"
+    [[ -f "$OMARCHY_VOICE_SETTINGS_PATH" ]] || { warn 'managed Vesktop settings file is missing; leaving it untouched'; return 0; }
+    current_hash=$(sha256_file "$OMARCHY_VOICE_SETTINGS_PATH")
+    if [[ "$current_hash" != "$OMARCHY_VOICE_SETTINGS_MANAGED_HASH" ]]; then
+        warn 'Vesktop settings changed after installation; leaving them untouched.'
+        return 0
+    fi
+    if [[ "$OMARCHY_VOICE_SETTINGS_HAD_FILE" == 1 ]]; then
+        [[ -f "$OMARCHY_VOICE_SETTINGS_BACKUP" ]] || die 'managed Vesktop settings backup is missing'
+        cp -p -- "$OMARCHY_VOICE_SETTINGS_BACKUP" "$OMARCHY_VOICE_SETTINGS_PATH"
+    else
+        rm -f -- "$OMARCHY_VOICE_SETTINGS_PATH"
     fi
 }
 
@@ -913,6 +1231,11 @@ status_cmd() {
             info "Managed Vencord: $(state_get vencord_dist)"
             info "Vencord revision: $(state_get vencord_revision)"
             info "Integration: $(state_get integration_method)"
+            if [[ "$(state_get omarchy_voice_controls 2>/dev/null || printf '0')" == 1 ]]; then
+                info 'Omarchy Discord voice controls: enabled for Vesktop'
+            else
+                info 'Omarchy Discord voice controls: disabled'
+            fi
         else
             info "Installer state: CORRUPT (preserved): $STATE_FILE"
         fi
@@ -947,12 +1270,22 @@ install_cmd() {
     require_user
     detect_native_clients
     select_client
+    resolve_omarchy_voice_controls
     ensure_state_usable
     load_vencord_settings_ownership
+    load_omarchy_voice_settings_ownership
     if [[ "$SELECTED_CLIENT" == vesktop ]]; then preflight_vesktop; else preflight_discord; fi
+    select_vencord_settings_path "$SELECTED_CLIENT"
     ensure_overlay
     ensure_managed_vencord
     enable_managed_vencord_plugin
+    if [[ "$OMARCHY_VOICE_CONTROLS_ENABLED" == 1 ]]; then
+        set_omarchy_voice_plugin_setting true
+        ensure_omarchy_voice_assets
+    elif [[ "$REQUESTED_OMARCHY_VOICE_CONTROLS" == 0 ]]; then
+        set_omarchy_voice_plugin_setting false
+        remove_omarchy_voice_assets
+    fi
     ensure_service
     if [[ "$SELECTED_CLIENT" == vesktop ]]; then configure_vesktop; else configure_discord; fi
     deactivate_previous_client
@@ -1002,8 +1335,10 @@ uninstall_cmd() {
     ensure_state_usable
     [[ -f "$STATE_FILE" ]] || { info 'No installer state found; nothing owned to uninstall.'; return 0; }
     state_is_valid || die 'installer state is corrupt; refusing uninstall'
-    load_vencord_settings_ownership
     client=$(state_get client)
+    VENCORD_SETTINGS_PATH=$(state_get vencord_settings_path)
+    load_vencord_settings_ownership
+    load_omarchy_voice_settings_ownership
     OVERLAY_EXECUTABLE=$(state_get overlay_path)
     [[ "$OVERLAY_EXECUTABLE" == "$MANAGED_ROOT/"* || "$OVERLAY_EXECUTABLE" == /usr/bin/vesktop-voice-overlay || "$OVERLAY_EXECUTABLE" == "$HOME/.local/bin/vesktop-voice-overlay" ]] ||
         die 'state overlay path is outside approved ownership locations'
@@ -1039,6 +1374,7 @@ uninstall_cmd() {
     else
         die "unknown client in installer state: $client"
     fi
+    restore_omarchy_voice_plugin_setting
     restore_managed_vencord_plugin
     remove_service || die 'uninstall stopped because the service was not manager-owned'
     remove_owned_tree "$MANAGED_ROOT"
@@ -1060,6 +1396,8 @@ parse_args() {
                 [[ "$REQUESTED_CLIENT" == vesktop || "$REQUESTED_CLIENT" == discord ]] || die 'client must be vesktop or discord'
                 shift
                 ;;
+            --omarchy-voice-controls) REQUESTED_OMARCHY_VOICE_CONTROLS=1 ;;
+            --no-omarchy-voice-controls) REQUESTED_OMARCHY_VOICE_CONTROLS=0 ;;
             --yes) ASSUME_YES=1 ;;
             --dry-run) DRY_RUN=1 ;;
             --version) version; exit 0 ;;

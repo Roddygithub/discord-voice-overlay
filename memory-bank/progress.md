@@ -1,5 +1,33 @@
 # Progress — Discord Voice Overlay
 
+## Optional Omarchy Discord voice controls — 2026-10-08
+
+- Added an explicit Vesktop-only installer option to include
+  `VesktopVoiceControl` in the managed Vencord build, enable/restore its setting,
+  and install a stable XDG-data adapter and bridge. Update/repair retain the
+  recorded opt-in; unknown custom userplugins remain protected.
+- Corrected the managed Vencord settings path by client. Vesktop uses its own
+  data directory (`~/.config/vesktop/settings/settings.json`), whereas native
+  Discord uses `~/.config/Vencord/settings/settings.json`; the old managed
+  Vesktop path is migrated with hash-guarded rollback.
+- Added the local Thisisgm panel adapter wiring to the deployment notes and
+  preserved the original RPC path for native Discord. The Vesktop path uses a
+  same-user local socket and does not disable arRPC or request OAuth.
+- Pinned the imported userplugin provenance to
+  `Roddygithub/vesktop-voice-control@6acdb3a546245c44b4985397e3b0d61c27d4ae61`.
+- Validation: installer lifecycle fixtures, Python bridge unit tests, and the
+  Omarchy QML model tests pass. The live managed Vencord build completed at the
+  pinned revision with both plugins present; the optional setting and bridge
+  assets are manager-owned. The prior Vencord overlay entry source was preserved
+  before being aligned with repository main during this managed update.
+- The Thisisgm panel's local RPC adapter now selects the backend from the active
+  process while retaining upstream `rpc.py` for native Discord. After restarting
+  the Omarchy shell, the adapter connected to Vesktop's socket and a live probe
+  returned the current Lobby/guild/mute state. Vesktop's active call was not
+  interrupted; its updated Vencord bundle is loaded at the next client start.
+- The Discord capture source was separately observed muted in PipeWire and
+  unmuted; it remains unmuted during this validation.
+
 ## Statut Global
 
 ## PR #30 reverted before release — 2026-10-08

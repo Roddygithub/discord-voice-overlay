@@ -134,11 +134,17 @@ jobs:
              plugin/src/resendCache.ts \
              plugin/src/voiceState.ts \
              /tmp/Vencord/src/userplugins/vesktopVoiceOverlay/
+          mkdir -p /tmp/Vencord/src/userplugins/vesktopVoiceControl
+          cp integrations/omarchy-discord/userplugin/index.ts \
+             integrations/omarchy-discord/userplugin/native.ts \
+             /tmp/Vencord/src/userplugins/vesktopVoiceControl/
           cd /tmp/Vencord
           pnpm install --frozen-lockfile
           pnpm build
           grep -q "VesktopVoiceOverlay" dist/vencordDesktopRenderer.js
           grep -q "VesktopVoiceOverlay" dist/vencordDesktopMain.js
+          grep -q "VesktopVoiceControl" dist/vencordDesktopRenderer.js
+          grep -q "VesktopVoiceControl" dist/vencordDesktopMain.js
 
       - name: Pack plugin source
         working-directory: ./plugin

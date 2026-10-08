@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Opt-in Vencord voice-control bridge for Vesktop and the Thisisgm Omarchy Discord panel.
+- Client-aware adapter that preserves the panel's native Discord RPC backend.
+
+### Changed
+- Managed Vencord settings now follow the selected client's actual data directory;
+  legacy Vesktop settings ownership migrates with hash-guarded rollback.
+
 ## [1.3.0] - 2026-08-31
 
 ### Added

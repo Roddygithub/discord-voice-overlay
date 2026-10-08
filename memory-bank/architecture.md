@@ -43,11 +43,12 @@
 - The current installer candidate must invoke the official Vencord CLI with an
   explicit target for non-interactive operation and must write an absolute
   executable path in `ExecStart`; these are acceptance-blocking requirements.
-- Vencord persists renderer plugin state as JSON at
-  `<XDG_CONFIG_HOME>/Vencord/settings/settings.json`; native Discord and
-  Vesktop share this default location. The installer structurally enables only
-  `plugins.VesktopVoiceOverlay.enabled`, writes atomically, and restores its
-  attributable backup only when the file is unchanged.
+- Native Discord persists Vencord settings at
+  `<XDG_CONFIG_HOME>/Vencord/settings/settings.json`. Vesktop sets
+  `VENCORD_USER_DATA_DIR` to its app data directory, so its Vencord settings are
+  at `<XDG_CONFIG_HOME>/vesktop/settings/settings.json`. The manager selects the
+  matching file and structurally enables only its owned plugin keys, preserving
+  unrelated settings and restoring backups only when the file is unchanged.
 - Live acceptance confirmed the enabled settings are consumed by native
   Discord: the renderer started `VesktopVoiceOverlay`, and the managed overlay
   accepted the same-user client connection and initial messages.
@@ -91,6 +92,23 @@ The plugin uses `VoiceStateStore` and `UserStore` from the existing Discord
 renderer. It does not read a token, open a Gateway connection, inspect message
 content, or inject into a game process. The renderer invokes the native socket
 helper through Vencord's generated `PluginNative` bridge.
+
+## Optional Omarchy Discord Voice Controls
+
+The opt-in `--omarchy-voice-controls` path builds a second Vencord userplugin
+only for Vesktop and manages it alongside the overlay plugin. Its local socket
+is `$XDG_RUNTIME_DIR/vesktop-voice-control.sock`, mode `0600`, and exposes only
+the current call's state and commands. `rpc-adapter.py` preserves the upstream
+Omarchy panel contract: it routes Vesktop to `vbridge.py` and native Discord to
+the panel's original `rpc.py`. The feature does not disable arRPC or require
+OAuth credentials. The manager records the opt-in and plugin source hash in its
+build marker and installer state; unknown userplugins remain a stop condition.
+
+The implementation originated in
+`Roddygithub/vesktop-voice-control@6acdb3a546245c44b4985397e3b0d61c27d4ae61`.
+Its maintained copy lives in `integrations/omarchy-discord/` under this
+repository's GPL-3.0 license. Panel-specific QML wiring is documented beside
+the adapter; upstream `omarchy-discord` remains independently usable.
 
 ## Plugin
 
