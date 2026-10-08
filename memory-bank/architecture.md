@@ -148,6 +148,15 @@ immediately.
 
 ## GTK And Layer Shell
 
+PR #30's unreleased monitor-selection remediation was reverted from main after
+HEADLESS hotplug testing exposed candidate GTK4/Wayland SIGSEGVs. Its fixed
+Monitor 0/1 tests showed promise, but Cursor/Active stayed best-effort and the
+root cause remains unresolved between project lifecycle handling and upstream
+GTK/GDK/Wayland. PR #30 was never released: v1.3.0 remains the stable baseline,
+issue #21 remains open, and further remediation is deferred pending stronger
+diagnostic evidence or demonstrated multi-monitor demand. Detailed original and
+follow-up crash evidence and controls are retained in `memory-bank/progress.md`.
+
 The application uses a non-unique `GtkApplication`; duplicate-instance
 ownership is determined synchronously by the Unix socket bind. A stale socket
 is replaced, while a connectable socket causes startup to fail.

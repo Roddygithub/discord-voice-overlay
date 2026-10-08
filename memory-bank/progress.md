@@ -2,6 +2,43 @@
 
 ## Statut Global
 
+## PR #30 reverted before release — 2026-10-08
+
+- PR #30 (`6afbb35069eb7b057eda8391cec94d3435c556a2`) was merged to `main`
+  and intentionally reverted before release. It was never included in a release;
+  v1.3.0 remains the stable baseline and its installed service is unaffected.
+- The experimental change showed promise in headless fixed-output tests:
+  Monitor 0/1 assignment and index wrapping worked. Cursor/Active remained
+  best-effort under GDK/Wayland.
+- Hotplug testing produced two candidate SIGSEGVs in GTK4/Wayland dispatch.
+  The exact root cause is unresolved; there is no evidence proving whether the
+  defect is project monitor lifecycle handling or upstream GTK/GDK/Wayland.
+  No speculative source fix is retained.
+- Issue #21 remains OPEN. Further monitor-selection work is deferred until
+  stronger diagnostic evidence or demonstrated multi-monitor demand justifies
+  another implementation and validation effort.
+- Follow-up diagnosis reproduced the crash once at 08:18:34 CEST (core PID
+  3926009, debug candidate SHA-256
+  `7a49cb4eaa5fe717b9d820f948c80afef52b1f468176d7f1c54dd84903099bb1`). The
+  core is SIGSEGV/SEGV_MAPERR at GTK4+0x4c2c46 via Wayland
+  `wl_closure_invoke`; GTK symbols were unavailable and no project Rust
+  callback appears on the fault stack. No OOM evidence was found.
+- Six HEADLESS add/remove cycles with DP-2 selected (both hidden and visible)
+  survived. The selected HEADLESS control survived four observed target
+  reassignments; neither control isolates the invalid object or contradicts
+  the intermittent crash. No source fix, hotplug regression test, performance
+  measurement, or independent review was completed; no deterministic shortest
+  triggering operation was established.
+- The normal revert is recorded locally as `05f8872` (pending push at the time
+  this note was written); it removes the PR #30 changes without rewriting
+  history. The documentation follow-up preserves these findings. No new tag,
+  release, or AUR publication is authorized.
+- Final restoration check: temporary HEADLESS outputs, candidate units, sockets,
+  and configs removed; only DP-2 remains. Installed v1.3.0 is active as PID
+  3640956 with `NRestarts=0`, its hash is unchanged, and workspace 4/cursor
+  217,955 were restored. Installer `status` and `doctor` passed.
+
+
 ## Réparation Vencord sur la machine locale — 2026-10-06
 
 - Le gestionnaire a reconstruit Vencord au commit épinglé, configuré Vesktop et

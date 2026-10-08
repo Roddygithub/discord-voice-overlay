@@ -36,7 +36,7 @@ overlay, installed and managed by the v1.3.0 universal installer.
 
 - 🔒 **Privacy-first** — no Discord token access, no self-bots, no separate Gateway connections
 - 🖥️ **Wayland-native** — `layer-shell` with an empty input region, so mouse clicks pass through to whatever is underneath (wlroots compositors: Hyprland, sway, niri, etc.)
-- 📺 **Multi-monitor** — pin the overlay to the primary monitor, the monitor under the cursor, or an explicit output
+- 📺 **Monitor setting** — primary, cursor, or indexed output is exposed, but reliable hotplug behavior is deferred pending issue #21
 - ⚡ **Low latency** — event-driven voice updates over a local Unix socket
 - 🎮 **Game compatible** — click-through overlay works over fullscreen XWayland games
 - 🔄 **Auto-reconnect** — fast bounded backoff (≤ 2 s) if Discord Desktop, Vesktop, or the overlay restarts; the latest settings and voice snapshot are replayed automatically so no voice activity is needed to repopulate the overlay
@@ -131,7 +131,7 @@ restart.
 | `userDisplay` | speaking only (default), always |
 | `nameDisplay` | speaking only (default), always, never |
 | `avatarSize` | small (default), large |
-| `monitor` | primary (default), cursor monitor, monitor 0–3 |
+| `monitor` | primary (default), cursor monitor, monitor 0–3; experimental, hotplug reliability unresolved (issue #21) |
 
 An optional TOML file at `~/.config/vesktop-voice-overlay/config.toml` is
 read at overlay startup if present — it is **never created or written** by
@@ -342,9 +342,9 @@ Layer-shell support is compositor-dependent:
 - ⚠️ **sway** / **niri** / **wayfire** — expected to work through layer-shell,
   but not individually validated
 - ⚠️ **GNOME / KDE** (layer-shell support varies) — untested
-- ⚠️ **Exclusive-fullscreen** games — untested; multi-monitor placement is
-  configurable (see the `monitor` setting) but has not been validated across a
-  real multi-head setup
+- ⚠️ **Exclusive-fullscreen** games — untested; monitor selection is
+  configurable, but hotplug may crash the candidate in GTK/Wayland dispatch.
+  See issue #21; do not rely on it for hotplug until resolved.
 
 ## Distribution
 
