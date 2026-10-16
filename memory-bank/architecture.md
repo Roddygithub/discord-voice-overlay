@@ -31,6 +31,9 @@
 - Overlay releases are downloaded to the user-owned
   `~/.local/share/discord-voice-overlay/` tree and verified against the tagged
   `SHA256SUMS`; an existing package-owned or local binary is never overwritten.
+- When `install.sh` is run from a pipe without a checkout, it clones the
+  matching release tag into a temporary directory for the source userplugin,
+  then removes that temporary source after the managed installation completes.
 - The managed Vencord checkout lives under the same user-owned data tree, is
   cloned from the official repository at the pinned revision above, and is
   atomically rebuilt before replacing the prior managed checkout.

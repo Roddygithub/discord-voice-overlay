@@ -57,6 +57,21 @@
   the local screenshot capture have passed; release gates will run again for
   the versioned `1.4.1` tag.
 
+## v1.4.1 release and local deployment — 2026-10-16
+
+- Annotated tag `v1.4.1` and GitHub Release are published from commit
+  `81a5616`; the release workflow passed overlay validation/build, pinned
+  Vencord build and typecheck, plugin packaging, and checksum generation.
+- Release assets are `vesktop-voice-overlay`,
+  `vesktop-voice-overlay-plugin-1.4.1.tgz`, and `SHA256SUMS`; the downloaded
+  assets match the published checksums and the binary reports `1.4.1`.
+- The managed Vesktop installation was updated to overlay `1.4.1`; the pinned
+  Vencord build and both userplugins remain present, with the user service
+  enabled and active.
+- Issue #21 was closed after documenting fixed-monitor support and retaining
+  the unresolved cursor/hotplug limitations as experimental rather than
+  claiming unsafe GTK/Wayland behavior as supported.
+
 ## v1.4.0 release preparation — 2026-10-16
 
 - Version alignment is complete at `1.4.0` for the installer, overlay binary,
