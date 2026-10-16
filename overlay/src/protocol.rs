@@ -179,6 +179,13 @@ mod tests {
     }
 
     #[test]
+    fn test_reject_invalid_monitor_setting() {
+        let json = r#"{"type":"settings","settings":{"enabled":true,"position":"top-right","custom_x":0,"custom_y":0,"user_display":"speaking_only","name_display":"always","avatar_size_mode":"small","monitor":"index:4"}}"#;
+
+        assert!(deserialize_client_message(json).is_none());
+    }
+
+    #[test]
     fn test_deserialize_settings_accepts_large_avatar_mode() {
         let json = r#"{"type":"settings","settings":{"enabled":true,"position":"top-right","custom_x":20,"custom_y":20,"user_display":"speaking_only","name_display":"always","avatar_size_mode":"large"}}"#;
 

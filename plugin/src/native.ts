@@ -79,6 +79,12 @@ export function startSocket(
 
         const newSocket = net.createConnection(socketPath);
         socket = newSocket;
+        newSocket.setTimeout(5000, () => {
+            if (!handshakeComplete) {
+                console.warn("[Discord Voice Overlay] Socket handshake timed out");
+                newSocket.destroy();
+            }
+        });
         handshakeComplete = false;
         backpressured = false;
 
@@ -102,6 +108,7 @@ export function startSocket(
                     if (header === "VESKTOP_VOICE_OVERLAY/1.0") {
                         newSocket.off("data", onData);
                         handshakeComplete = true;
+                        newSocket.setTimeout(0);
                         reconnectAttempts = 0;
                         // Restore the overlay's state immediately after any
                         // restart so no voice activity is needed to repopulate.

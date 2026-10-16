@@ -40,12 +40,13 @@ fn resolve_monitor(monitor_config: &MonitorConfig) -> Option<gdk4::Monitor> {
     let first = || monitors.item(0).and_downcast::<gdk4::Monitor>();
 
     match monitor_config {
+        // GDK 4.0 does not expose a primary-output query; preserve the
+        // existing first-output fallback until a stable compositor API exists.
         MonitorConfig::Primary => first(),
         MonitorConfig::Active | MonitorConfig::Cursor => monitor_at_cursor(&display).or_else(first),
-        MonitorConfig::Index(idx) => {
-            let idx = *idx % n;
-            monitors.item(idx).and_downcast::<gdk4::Monitor>()
-        }
+        MonitorConfig::Index(idx) => (*idx < n)
+            .then(|| monitors.item(*idx).and_downcast::<gdk4::Monitor>())
+            .flatten(),
     }
 }
 

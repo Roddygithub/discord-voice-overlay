@@ -17,7 +17,6 @@ CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"
 MANAGED_DIR = Path(os.environ.get("OMARCHY_UPDATE_MANAGED_DIR", str(Path(__file__).resolve().parent)))
 PLUGIN_DIR = Path(os.environ.get("OMARCHY_UPDATE_PLUGIN_DIR", str(CONFIG_HOME / "omarchy/plugins" / PLUGIN_ID)))
 PATCH_PATH = Path(os.environ.get("OMARCHY_UPDATE_PATCH_PATH", str(MANAGED_DIR / "panel-adaptation.patch")))
-LOCK_PATH = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "omarchy-discord-update.lock"
 
 
 class UpdateError(RuntimeError):

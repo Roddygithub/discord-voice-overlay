@@ -42,6 +42,20 @@
 
 ## Statut Global
 
+## Repository professionalization audit — 2026-10-16
+
+- Baseline was recorded at `1192013476f1164a029b7bcc06d1d30590c6a525` before
+  edits. Rust checks were initially blocked only by the local `mise` shim;
+  plugin, installer, and Python baseline checks passed.
+- Confirmed fixes include runtime monitor-setting ownership, strict monitor
+  parsing, safer stale-socket removal, handshake timeout, quieter privacy-safe
+  logging, installer rollback/ownership repairs, optional bridge bounds and
+  lifecycle cleanup, and plugin tooling/typecheck CI coverage.
+- Current validation passes Rust fmt/clippy/tests/release build, npm lint/tests/
+  audit, ShellCheck, installer fixtures, and Python integration tests. Live
+  overlay rendering was captured with synthetic identities; Vesktop settings
+  capture remains unavailable without a reliable UI automation path.
+
 ## PR #30 reverted before release — 2026-10-08
 
 - PR #30 (`6afbb35069eb7b057eda8391cec94d3435c556a2`) was merged to `main`

@@ -13,7 +13,12 @@ avatars, speaking and mute/deaf indicators, configurable position and monitor,
 and native click-through. It is a shared custom Vencord plugin plus a Rust
 overlay, installed and managed by the v1.3.0 universal installer.
 
-<!-- TODO: hero screenshot / GIF of the overlay in a voice channel -->
+> The overlay is rendered by the compositor, not injected into the game process.
+
+![Discord Voice Overlay showing synthetic participants and speaking indicators](docs/assets/overlay-game.png)
+
+_Real overlay render from a local Wayland validation session; the displayed
+participant names are synthetic._
 
 ## Contents
 
@@ -36,7 +41,7 @@ overlay, installed and managed by the v1.3.0 universal installer.
 
 - 🔒 **Privacy-first** — no Discord token access, no self-bots, no separate Gateway connections
 - 🖥️ **Wayland-native** — `layer-shell` with an empty input region, so mouse clicks pass through to whatever is underneath (wlroots compositors: Hyprland, sway, niri, etc.)
-- 📺 **Monitor setting** — primary, cursor, or indexed output is exposed, but reliable hotplug behavior is deferred pending issue #21
+- 📺 **Monitor setting** — primary, cursor, or indexed output can be selected; monitor hotplug and live cursor-following remain experimental (issue #21)
 - ⚡ **Low latency** — event-driven voice updates over a local Unix socket
 - 🎮 **Game compatible** — click-through overlay works over fullscreen XWayland games
 - 🔄 **Auto-reconnect** — fast bounded backoff (≤ 2 s) if Discord Desktop, Vesktop, or the overlay restarts; the latest settings and voice snapshot are replayed automatically so no voice activity is needed to repopulate the overlay
@@ -102,14 +107,14 @@ on conflicts.
 ./install.sh install    # install or reinstall
 ./install.sh status     # what is installed, who owns it
 ./install.sh doctor     # diagnose client / service / ownership problems
-./install.sh update     # fetch and verify the latest release
+./install.sh update     # sync the pinned overlay and Vencord inputs
 ./install.sh repair     # rebuild the managed Vencord checkout
 ./install.sh uninstall  # remove what the manager owns
 ```
 
 Release binaries and plugin source bundles are available on the
-[`v1.3.0` release page](https://github.com/Roddygithub/discord-voice-overlay/releases/tag/v1.3.0);
-the manager normally downloads and verifies the matching assets for you.
+[release page](https://github.com/Roddygithub/discord-voice-overlay/releases);
+the manager downloads and verifies the version pinned in `install.sh`.
 
 Flatpak, AppImage, arbitrary custom installations, and existing foreign custom
 Vencord/injected setups are detected or rejected safely — see
@@ -148,7 +153,7 @@ restart.
 | `userDisplay` | speaking only (default), always |
 | `nameDisplay` | speaking only (default), always, never |
 | `avatarSize` | small (default), large |
-| `monitor` | primary (default), cursor monitor, monitor 0–3; experimental, hotplug reliability unresolved (issue #21) |
+| `monitor` | primary (default), cursor monitor, monitor 0–3; hotplug and cursor-following are experimental (issue #21) |
 
 An optional TOML file at `~/.config/vesktop-voice-overlay/config.toml` is
 read at overlay startup if present — it is **never created or written** by
@@ -190,13 +195,8 @@ journalctl --user -u vesktop-voice-overlay.service -f
 ```
 
 If your compositor session does not activate `graphical-session.target`
-(e.g. Hyprland started without uwsm), either start it from your Hyprland
-config (`exec-once = systemctl --user start vesktop-voice-overlay`) or enable
-the default.target variant:
-
-```bash
-systemctl --user enable vesktop-voice-overlay.service
-```
+(e.g. Hyprland started without uwsm), start it from your Hyprland config:
+`exec-once = systemctl --user start vesktop-voice-overlay`.
 
 Running a second instance manually while the service owns the socket fails
 cleanly with `another vesktop-voice-overlay instance owns ...` and exit code 1.
@@ -290,8 +290,8 @@ and `dist/vencordDesktopMain.js` must both be ≥ 1.
 # Start overlay (keep running in background)
 ./target/release/vesktop-voice-overlay
 
-# Or with debug logging
-RUST_LOG=debug ./target/release/vesktop-voice-overlay
+# Or with verbose logging
+./target/release/vesktop-voice-overlay --debug
 ```
 
 ## Architecture
@@ -314,6 +314,9 @@ RUST_LOG=debug ./target/release/vesktop-voice-overlay
 - ✅ **No self-bots** — no separate Discord Gateway connections
 - ✅ **Same-user IPC** — Unix domain socket under `$XDG_RUNTIME_DIR` with `0700` permissions + `SO_PEERCRED` UID validation
 - ✅ **Minimal data boundary** — only required voice-state snapshots cross the local socket; avatar images may be fetched from Discord's CDN over HTTPS
+- ℹ️ The optional Omarchy voice-controls bridge also exposes the active voice
+  channel and guild names to the local panel; disable it if that integration is
+  not needed.
 
 ## Socket protocol
 
@@ -359,9 +362,8 @@ Layer-shell support is compositor-dependent:
 - ⚠️ **sway** / **niri** / **wayfire** — expected to work through layer-shell,
   but not individually validated
 - ⚠️ **GNOME / KDE** (layer-shell support varies) — untested
-- ⚠️ **Exclusive-fullscreen** games — untested; monitor selection is
-  configurable, but hotplug may crash the candidate in GTK/Wayland dispatch.
-  See issue #21; do not rely on it for hotplug until resolved.
+- ⚠️ **Exclusive-fullscreen** games — untested. Monitor hotplug behavior is
+  unresolved; see issue #21 and do not rely on live output changes yet.
 
 ## Distribution
 

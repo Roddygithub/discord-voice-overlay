@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Managed Vencord settings now follow the selected client's actual data directory;
   legacy Vesktop settings ownership migrates with hash-guarded rollback.
+- Runtime monitor selection is applied from the live overlay configuration;
+  monitor parsing is strict with indexed outputs capped at 0-3.
+- Installer ownership checks use path-independent managed hashes with legacy
+  marker compatibility; panel adaptations require manual removal.
+- Optional Omarchy bridge hardens IPC bounds and lifecycle handling.
+- Real Wayland hero screenshot documents the local overlay render.
+- Plugin tooling updates typescript-eslint to v8; Vencord typecheck covers both
+  userplugins in CI and release.
+
+### Fixed
+- Socket handshake timeout with bounded reconnect replay.
+- Quieter privacy-safe logging with opt-in debug output.
+- AUR source archive paths match the GitHub repository layout.
+- Optional bridge backpressure coalesces the latest state for slow readers.
 
 ## [1.3.0] - 2026-08-31
 

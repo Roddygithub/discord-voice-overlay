@@ -21,7 +21,7 @@ command: ["python3", root.scriptPath, "--client", root.clientId]
 
 The enclosing service should expose `clientId` as `vesktop` or `discord`, based on the main process/window, bind it to `Rpc.clientId`, and pass it to the process that runs the adapter. Pass it to the `--save` process too. The adapter delegates Discord to the plugin's original `rpc.py` and Vesktop to the local Vencord bridge. Keep the original `rpc.py` in the plugin directory.
 
-The installer option installs the adapter and bridge under XDG data and enables `VesktopVoiceControl` in Vesktop's actual settings file. When the Thisisgm plugin is a Git checkout, it also snapshots the local panel adaptation and enables a daily user timer. The timer fast-forwards compatible upstream updates, reapplies and validates the adaptation, and rolls back/notifies on conflicts. Vesktop package updates leave the managed Vencord directory intact; the timer checks the bridge while Vesktop runs rather than rebuilding the same pinned Vencord version. Disabling the option removes the timer, bridge source, and managed setting; uninstall restores the prior setting when the settings file has not subsequently changed.
+The installer option installs the adapter and bridge under XDG data and enables `VesktopVoiceControl` in Vesktop's actual settings file. When the Thisisgm plugin is a Git checkout, it also snapshots the local panel adaptation and enables a daily user timer. The timer fast-forwards compatible upstream updates, reapplies and validates the adaptation, and rolls back/notifies on conflicts. Vesktop package updates leave the managed Vencord directory intact; the timer checks the bridge while Vesktop runs rather than rebuilding the same pinned Vencord version. Disabling the option removes the timer, bridge source, and managed setting only when no saved panel adaptation is present. Because the saved diff may contain unrelated user edits, disable/uninstall asks you to remove that panel diff manually first instead of reversing it automatically.
 
 To stop only the scheduled check while keeping the voice bridge enabled:
 
@@ -35,7 +35,9 @@ systemctl --user disable --now discord-voice-overlay-omarchy-update.timer
 python3 vbridge.py --probe
 ```
 
-The output should contain the active call's channel, guild, mute/deafen state, and input gain. A missing control socket means the opt-in plugin is not enabled in the running Vencord build.
+The output reports only `state: available` (or an unavailable/error result); it
+does not print call details. A missing control socket means the opt-in plugin is
+not enabled in the running Vencord build.
 
 ## Source provenance
 

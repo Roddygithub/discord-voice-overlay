@@ -43,6 +43,11 @@ impl SocketServer {
                         self.socket_path
                     );
                 }
+                use std::os::unix::fs::FileTypeExt;
+                let metadata = std::fs::symlink_metadata(&self.socket_path)?;
+                if metadata.file_type().is_symlink() || !metadata.file_type().is_socket() {
+                    anyhow::bail!("refusing to remove non-socket at {}", self.socket_path);
+                }
                 debug!("Removing stale socket at {}", self.socket_path);
                 std::fs::remove_file(&self.socket_path)?;
                 UnixListener::bind(&self.socket_path)?
@@ -194,7 +199,7 @@ fn read_messages<R: BufRead>(reader: &mut R, cmd_tx: &mpsc::Sender<OverlayComman
         }
 
         if let Some(snapshot) = Snapshot::deserialize(line) {
-            info!(
+            debug!(
                 "Received snapshot with {} participants",
                 snapshot.participants.len()
             );
@@ -203,12 +208,12 @@ fn read_messages<R: BufRead>(reader: &mut R, cmd_tx: &mpsc::Sender<OverlayComman
                 .map_err(|_| anyhow::anyhow!("GTK command receiver closed"))?;
         } else if let Some(ClientMessage::Settings { settings }) = deserialize_client_message(line)
         {
-            info!("Received overlay settings update");
+            debug!("Received overlay settings update");
             cmd_tx
                 .blocking_send(OverlayCommand::UpdateSettings(settings))
                 .map_err(|_| anyhow::anyhow!("GTK command receiver closed"))?;
         } else if matches!(deserialize_client_message(line), Some(ClientMessage::Clear)) {
-            info!("Received voice state clear");
+            debug!("Received voice state clear");
             cmd_tx
                 .blocking_send(OverlayCommand::Clear)
                 .map_err(|_| anyhow::anyhow!("GTK command receiver closed"))?;

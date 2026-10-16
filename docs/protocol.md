@@ -36,7 +36,9 @@ VESKTOP_VOICE_OVERLAY/1.0\n
       "userId": "987654321098765432",
       "username": "Friend",
       "avatarUrl": "https://cdn.discordapp.com/avatars/987/def.png",
-      "speaking": false,
+     "mute": false,
+     "deaf": false,
+     "speaking": false,
       "volume": 80
     }
   ]
@@ -66,8 +68,10 @@ export interface ParticipantSelf {
 export interface Participant {
   userId: string;
   username: string;
-  avatarUrl: string;
-  speaking: boolean;
+    avatarUrl: string;
+    mute?: boolean;
+    deaf?: boolean;
+   speaking: boolean;
   volume?: number;
 }
 
@@ -97,7 +101,9 @@ pub struct Participant {
     pub user_id: String,
     pub username: String,
     pub avatar_url: String,
-    pub speaking: bool,
+    pub mute: bool,
+    pub deaf: bool,
+   pub speaking: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub volume: Option<u8>,
 }
@@ -117,7 +123,8 @@ they change (and once right after connecting):
     "custom_y": 400,
     "user_display": "speaking_only",
     "name_display": "speaking_only",
-    "avatar_size_mode": "small"
+    "avatar_size_mode": "small",
+    "monitor": "primary"
   }
 }
 ```
@@ -130,6 +137,9 @@ Validation (invalid settings messages are dropped):
 - `user_display`: `speaking_only` | `always`
 - `name_display`: `speaking_only` | `always` | `never`
 - `avatar_size_mode`: `small` | `large` (rendered as 28 px / 40 px)
+- `monitor`: `primary`, `cursor`, or `index:0` through `index:3`. Invalid
+  values are rejected. Cursor selection resolves when the setting is applied;
+  continuous cursor tracking and hotplug handling are not guaranteed (issue #21).
 
 ## Clear Message
 

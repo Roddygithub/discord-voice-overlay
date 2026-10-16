@@ -2,6 +2,7 @@
 """Adapt Vesktop's local voice-control socket to omarchy-discord's JSONL API."""
 
 import json
+import math
 import os
 import select
 import socket
@@ -10,6 +11,8 @@ import time
 
 PROTOCOL_HEADER = "VESKTOP_VOICE_CONTROL/1.0"
 RECONNECT_DELAY_SEC = 2.0
+MAX_LINE_BYTES = 8192
+MAX_BUFFER_BYTES = MAX_LINE_BYTES
 
 
 def socket_path():
@@ -23,21 +26,28 @@ def emit(payload):
 
 
 def state_from_control(message):
+    if not isinstance(message, dict):
+        message = {}
+
     def number(value, fallback):
         try:
-            return round(float(value))
+            value = float(value)
+            return round(value) if math.isfinite(value) else fallback
         except (TypeError, ValueError):
             return fallback
 
     speaking = message.get("speaking")
+    if not isinstance(speaking, list):
+        speaking = []
+    speaking = [name for name in speaking if isinstance(name, str)][:100]
     return {
         "ok": True,
-        "channel": str(message.get("channel") or ""),
-        "guild": str(message.get("guild") or ""),
+        "channel": str(message.get("channel") or "")[:256],
+        "guild": str(message.get("guild") or "")[:256],
         "mute": message.get("mute") is True,
         "deaf": message.get("deaf") is True,
         "inputVolume": number(message.get("inputVolume"), 100),
-        "speaking": speaking if isinstance(speaking, list) else [],
+        "speaking": speaking,
         "error": "",
         "ping": number(message.get("ping"), 0),
         "voiceState": str(message.get("voiceState") or ""),
@@ -54,11 +64,13 @@ def read_lines(fd, buffer):
     if not chunk:
         return buffer, None
     buffer += chunk.decode("utf-8", "replace")
+    if len(buffer.encode("utf-8")) > MAX_BUFFER_BYTES:
+        return "", []
     lines = []
     while "\n" in buffer:
         line, buffer = buffer.split("\n", 1)
         line = line.strip()
-        if line:
+        if line and len(line.encode("utf-8")) <= MAX_LINE_BYTES:
             lines.append(line)
     return buffer, lines
 
@@ -92,7 +104,7 @@ def probe():
                 raise OSError("Vesktop closed before returning state")
             buffer += chunk
         line = buffer.split("\n", 1)[0].strip()
-        print("state: %s" % line)
+        print("state: available")
         return 0
     except OSError as error:
         print("control socket: %s" % error)
@@ -140,7 +152,7 @@ def main():
                     message = json.loads(line)
                 except ValueError:
                     continue
-                if message.get("type") == "state":
+                if isinstance(message, dict) and message.get("type") == "state":
                     emit(state_from_control(message))
 
         if sys.stdin in readable:

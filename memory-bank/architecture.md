@@ -10,6 +10,19 @@
   package, and repository identifiers remain unchanged. Renaming those values
   would risk breaking existing settings, clients, or installations.
 
+## 2026-10-16 Audit Decisions
+
+- Keep the plugin → Unix socket → Rust/GTK layer-shell architecture. Runtime
+  settings are now read back from the UI's single effective configuration before
+  position and monitor updates, avoiding a stale startup-config copy.
+- The installer remains one user-level Bash manager. Its ownership boundary is
+  preserved; replacement is allowed only when the installed managed source
+  matches its build marker, so legitimate project updates are no longer
+  mistaken for user edits.
+- The optional Omarchy bridge remains isolated. Its native socket derives the
+  XDG runtime path itself, bounds command buffers/clients, and refuses to remove
+  a saved panel diff whose ownership cannot be proven.
+
 ## Installer Architecture (Candidate v1.3.0)
 
 - The installer is a user-run Bash manager with `install`, `update`, `repair`,

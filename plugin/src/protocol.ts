@@ -46,10 +46,6 @@ export function normalizeCoordinate(value: number): number {
   return Math.max(-32768, Math.min(32768, Math.trunc(value)));
 }
 
-export function positionForCustomCoordinateChange(position: string): string {
-  return position === "custom" ? position : "custom";
-}
-
 export function speakingEventUserId(event: unknown): string | null {
   if (!event || typeof event !== "object") return null;
   const value = event as Record<string, unknown>;
@@ -63,16 +59,4 @@ export function speakingEventState(event: unknown): boolean {
   const flags = value.speakingFlags ?? value.speaking_flags;
   if (typeof flags === "number") return flags !== 0;
   return value.speaking !== false && value.speaking !== 0;
-}
-
-export function deserializeSnapshot(line: string): Snapshot | null {
-  try {
-    const parsed = JSON.parse(line);
-    if (parsed.version === 1) {
-      return parsed as SnapshotV1;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }

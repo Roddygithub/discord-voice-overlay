@@ -13,7 +13,7 @@ use gtk4::Application;
 use std::panic;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use tracing_subscriber::prelude::*;
 
 use crate::config::Config;
@@ -149,9 +149,9 @@ fn run_application(app: &Application) -> Result<()> {
         while let Some(cmd) = cmd_rx.recv().await {
             match cmd {
                 OverlayCommand::UpdateSnapshot(snapshot) => {
-                    info!("Applying snapshot to overlay UI");
+                    debug!("Applying snapshot to overlay UI");
                     let visible = ui.update_from_snapshot(&snapshot);
-                    info!(
+                    debug!(
                         "Snapshot speaking state: self={}, participants={}, visible={}",
                         snapshot.self_.speaking,
                         snapshot
@@ -170,14 +170,10 @@ fn run_application(app: &Application) -> Result<()> {
                     }
                 }
                 OverlayCommand::UpdateSettings(settings) => {
-                    update_position(
-                        &window_clone,
-                        &settings.position,
-                        settings.custom_x,
-                        settings.custom_y,
-                    );
-                    update_monitor(&window_clone, &config.overlay.monitor);
-                    if ui.update_settings(settings) {
+                    let visible = ui.update_settings(settings);
+                    update_position(&window_clone, &ui.position(), ui.custom_x(), ui.custom_y());
+                    update_monitor(&window_clone, &ui.monitor());
+                    if visible {
                         if !window_clone.is_visible() {
                             window_clone.present();
                         }
@@ -226,7 +222,7 @@ fn init_logging(debug: bool) {
     let filter = if debug {
         "debug,vesktop_voice_overlay=trace"
     } else {
-        "info,vesktop_voice_overlay=debug"
+        "info"
     };
 
     tracing_subscriber::registry()
