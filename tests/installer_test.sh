@@ -181,7 +181,7 @@ EOF
     FAKE_VENCORD_REV=$(git -C "$CASE_ROOT/vencord-source" rev-parse HEAD)
     cat > "$CASE_ROOT/overlay" <<'EOF'
 #!/usr/bin/env bash
-[[ "${1:-}" == --version ]] && printf 'vesktop-voice-overlay 1.3.0\n'
+[[ "${1:-}" == --version ]] && printf 'vesktop-voice-overlay 1.4.0\n'
 EOF
     chmod 755 "$CASE_ROOT/overlay"
     export CASE_HOME CASE_SYSTEM MOCK_LOG FAKE_VENCORD_REV STATE_FILE_FIXTURE \

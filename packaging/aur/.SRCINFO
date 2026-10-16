@@ -1,6 +1,6 @@
 pkgbase = vesktop-voice-overlay
 	pkgdesc = Wayland-native voice activity overlay for Discord Desktop and Vesktop
-	pkgver = 1.3.0
+	pkgver = 1.4.0
 	pkgrel = 1
 	url = https://github.com/Roddygithub/discord-voice-overlay
 	install = vesktop-voice-overlay.install
@@ -12,7 +12,7 @@ pkgbase = vesktop-voice-overlay
 	depends = gtk4
 	depends = gtk4-layer-shell
 	options = !lto
-	source = discord-voice-overlay-1.3.0.tar.gz::https://github.com/Roddygithub/discord-voice-overlay/archive/v1.3.0.tar.gz
+	source = discord-voice-overlay-1.4.0.tar.gz::https://github.com/Roddygithub/discord-voice-overlay/archive/v1.4.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = vesktop-voice-overlay

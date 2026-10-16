@@ -11,7 +11,7 @@ A native Wayland voice activity overlay for Discord Desktop and Vesktop on Linux
 See who is speaking without touching the game process: participant names and
 avatars, speaking and mute/deaf indicators, configurable position and monitor,
 and native click-through. It is a shared custom Vencord plugin plus a Rust
-overlay, installed and managed by the v1.3.0 universal installer.
+overlay, installed and managed by the v1.4.0 universal installer.
 
 > The overlay is rendered by the compositor, not injected into the game process.
 
@@ -46,7 +46,7 @@ participant names are synthetic._
 - 🎮 **Game compatible** — click-through overlay works over fullscreen XWayland games
 - 🔄 **Auto-reconnect** — fast bounded backoff (≤ 2 s) if Discord Desktop, Vesktop, or the overlay restarts; the latest settings and voice snapshot are replayed automatically so no voice activity is needed to repopulate the overlay
 - 🚀 **Session autostart** — ships a `systemd --user` service (`vesktop-voice-overlay.service`)
-- 🧰 **Universal manager** — v1.3.0 provides `install`, `status`, `doctor`, `update`, `repair`, and `uninstall` for supported native clients
+- 🧰 **Universal manager** — v1.4.0 provides `install`, `status`, `doctor`, `update`, `repair`, and `uninstall` for supported native clients
 
 ## How it compares
 
@@ -70,7 +70,7 @@ session.
 
 ### Universal installer (Arch Linux / Omarchy)
 
-The primary v1.3.0 installation path manages the overlay and one native Vencord
+The primary v1.4.0 installation path manages the overlay and one native Vencord
 client without changing pacman packages or requiring root. It supports native
 Arch Linux Discord Desktop and Vesktop installations:
 
@@ -205,7 +205,7 @@ cleanly with `another vesktop-voice-overlay instance owns ...` and exit code 1.
 
 The paths below are for development, unsupported packaging variants, or users
 who intentionally manage the client integration themselves. They are not the
-primary v1.3.0 installation path.
+primary v1.4.0 installation path.
 
 ### Quick start (Arch Linux / Hyprland)
 

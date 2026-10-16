@@ -3,8 +3,8 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 PRODUCT_NAME="Discord Voice Overlay"
-INSTALLER_VERSION="1.3.0"
-OVERLAY_VERSION="${DVO_OVERLAY_VERSION:-1.3.0}"
+INSTALLER_VERSION="1.4.0"
+OVERLAY_VERSION="${DVO_OVERLAY_VERSION:-1.4.0}"
 VENCORD_REPO="${DVO_VENCORD_REPO:-https://github.com/Vendicated/Vencord.git}"
 VENCORD_REV="${DVO_VENCORD_REV:-3374b8a9d8f6b051c64204917360293aad7f5d75}"
 RELEASE_REPO="Roddygithub/discord-voice-overlay"

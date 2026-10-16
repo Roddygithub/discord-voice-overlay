@@ -42,6 +42,21 @@
 
 ## Statut Global
 
+## v1.4.0 release preparation — 2026-10-16
+
+- Version alignment is complete at `1.4.0` for the installer, overlay binary,
+  plugin package and lockfile, AUR template, README, security policy, and
+  installer fixture.
+- The unreleased audit, optional Omarchy bridge, installer ownership fixes,
+  monitor-setting hardening, protocol bounds, and documentation are now grouped
+  under the `1.4.0` changelog entry.
+- Validation passed: Rust fmt/Clippy, 41 Rust tests, release and release-debug
+  builds, binary `--version`, plugin lint/tests (`20/20`), npm audit (`0`),
+  package dry-run, ShellCheck, installer fixtures, Python bridge tests, local
+  documentation links, and `git diff --check`.
+- The existing managed Vesktop installation remains on the stable `1.3.0`
+  release until the tagged `1.4.0` GitHub assets are published and verified.
+
 ## Repository professionalization audit — 2026-10-16
 
 - Baseline was recorded at `1192013476f1164a029b7bcc06d1d30590c6a525` before

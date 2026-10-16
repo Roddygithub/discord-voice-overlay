@@ -23,7 +23,7 @@
   XDG runtime path itself, bounds command buffers/clients, and refuses to remove
   a saved panel diff whose ownership cannot be proven.
 
-## Installer Architecture (Candidate v1.3.0)
+## Installer Architecture (Candidate v1.4.0)
 
 - The installer is a user-run Bash manager with `install`, `update`, `repair`,
   `status`, `doctor`, and `uninstall` commands plus `--client`, `--dry-run`,
@@ -79,7 +79,7 @@
   to shared Vencord settings were preserved rather than attributed back to the
   installer; the original settings snapshot remains available in the approved
   rollback bundle.
-- The v1.3.0 release metadata is aligned across the installer, overlay, plugin,
+- The v1.4.0 release metadata is aligned across the installer, overlay, plugin,
   lockfiles, and AUR template. The release workflow remains tag-driven and
   validates package versions, pinned Vencord discovery, release builds, and
   checksums; AUR publication is conditional on its existing secret.
