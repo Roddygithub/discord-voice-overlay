@@ -141,6 +141,7 @@ jobs:
           cd /tmp/Vencord
           pnpm install --frozen-lockfile
           pnpm build
+          pnpm testTsc
           grep -q "VesktopVoiceOverlay" dist/vencordDesktopRenderer.js
           grep -q "VesktopVoiceOverlay" dist/vencordDesktopMain.js
           grep -q "VesktopVoiceControl" dist/vencordDesktopRenderer.js

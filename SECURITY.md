@@ -4,7 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.2.0   | Yes       |
+| 1.3.0   | Yes       |
+| 1.2.0   | No        |
 | 1.1.0   | No        |
 | 1.0.0   | No        |
 
@@ -21,8 +22,11 @@ The overlay must not access the Discord account token. Its local bridge must
 export only the active voice participants and speaking state required for
 display, through a user-private Unix socket under `$XDG_RUNTIME_DIR`.
 
-The transmitted participant fields are Discord user ID, display name, avatar
-URL, mute/deaf state, and speaking state. Message content, guild/channel lists,
-session identifiers, credentials, and account tokens are not read or sent.
+The core overlay transmits only Discord user ID, display name, avatar URL,
+mute/deaf state, and speaking state. The optional Omarchy voice-controls bridge
+also exposes the current voice channel and guild names, plus currently speaking
+display names, to the local panel. Message content, guild/channel lists outside
+the active call, session identifiers, credentials, and account tokens are not
+read or sent.
 Avatar HTTP requests are restricted to HTTPS URLs on `cdn.discordapp.com`, do
 not follow redirects, and are subject to response and decode limits.

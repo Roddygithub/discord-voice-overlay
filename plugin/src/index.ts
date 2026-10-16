@@ -2,7 +2,6 @@ import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType, PluginNative } from "@utils/types";
 import {
     normalizeCoordinate,
-    positionForCustomCoordinateChange,
     serializeClear,
     serializeSnapshot,
     speakingEventState,
@@ -36,9 +35,8 @@ function sendSettings() {
 }
 
 function activateCustomPosition() {
-    const position = positionForCustomCoordinateChange(settings.store.position);
-    if (position === settings.store.position) sendSettings();
-    else settings.store.position = position;
+    if (settings.store.position !== "custom") settings.store.position = "custom";
+    else sendSettings();
 }
 
 const settings = definePluginSettings({

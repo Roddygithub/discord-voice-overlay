@@ -13,21 +13,21 @@ makedepends=(cargo pkg-config gtk4-layer-shell)
 options=(!lto)
 install=$pkgname.install
 
-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+source=("discord-voice-overlay-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-  cd "$pkgname-$pkgver/overlay"
+  cd "discord-voice-overlay-$pkgver/overlay"
   cargo build --release --locked
 }
 
 check() {
-  cd "$pkgname-$pkgver/overlay"
+  cd "discord-voice-overlay-$pkgver/overlay"
   cargo test --locked
 }
 
 package() {
-  cd "$pkgname-$pkgver"
+  cd "discord-voice-overlay-$pkgver"
   install -Dm755 "overlay/target/release/vesktop-voice-overlay" \
     "$pkgdir/usr/bin/vesktop-voice-overlay"
   install -Dm644 "packaging/systemd/user/$pkgname.service" \

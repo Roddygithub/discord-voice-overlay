@@ -145,6 +145,10 @@ jobs:
         run: pnpm build
         working-directory: /tmp/Vencord
 
+      - name: Typecheck Vencord with both userplugins
+        run: pnpm testTsc
+        working-directory: /tmp/Vencord
+
       - name: Verify plugin discovery
         run: |
           grep -q "VesktopVoiceOverlay" /tmp/Vencord/dist/vencordDesktopRenderer.js

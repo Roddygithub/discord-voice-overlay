@@ -50,6 +50,12 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(state["mute"])
         self.assertFalse(state["deaf"])
 
+    def test_state_conversion_rejects_non_finite_numbers_and_non_string_names(self):
+        state = vbridge.state_from_control({"inputVolume": "Infinity", "ping": "NaN", "speaking": ["Alice", 7]})
+        self.assertEqual(state["inputVolume"], 100)
+        self.assertEqual(state["ping"], 0)
+        self.assertEqual(state["speaking"], ["Alice"])
+
 
 if __name__ == "__main__":
     unittest.main()

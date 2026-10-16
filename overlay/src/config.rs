@@ -50,18 +50,22 @@ pub enum MonitorConfig {
 }
 
 impl MonitorConfig {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
-            "primary" => MonitorConfig::Primary,
-            "active" => MonitorConfig::Active,
-            "cursor" => MonitorConfig::Cursor,
+            "primary" => Some(MonitorConfig::Primary),
+            "active" => Some(MonitorConfig::Active),
+            "cursor" => Some(MonitorConfig::Cursor),
             s if s.starts_with("index:") => s
                 .strip_prefix("index:")
                 .and_then(|n| n.parse().ok())
-                .map(MonitorConfig::Index)
-                .unwrap_or(MonitorConfig::Primary),
-            _ => MonitorConfig::Primary,
+                .filter(|index: &u32| *index <= 3)
+                .map(MonitorConfig::Index),
+            _ => None,
         }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        Self::parse(s).unwrap_or_default()
     }
 }
 
@@ -107,11 +111,7 @@ impl OverlaySettings {
             "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "custom"
         ) && (-32_768..=32_768).contains(&self.custom_x)
             && (-32_768..=32_768).contains(&self.custom_y)
-            && (self.monitor.is_empty()
-                || self.monitor == "primary"
-                || self.monitor == "active"
-                || self.monitor == "cursor"
-                || self.monitor.starts_with("index:"))
+            && (self.monitor.is_empty() || MonitorConfig::parse(&self.monitor).is_some())
     }
 }
 
@@ -279,5 +279,9 @@ mod tests {
         assert_eq!(MonitorConfig::from_str("index:0"), MonitorConfig::Index(0));
         assert_eq!(MonitorConfig::from_str("index:2"), MonitorConfig::Index(2));
         assert_eq!(MonitorConfig::from_str("unknown"), MonitorConfig::Primary);
+        assert!(MonitorConfig::parse("index:3").is_some());
+        assert!(MonitorConfig::parse("index:4").is_none());
+        assert!(MonitorConfig::parse("index:").is_none());
+        assert!(MonitorConfig::parse("index:not-a-number").is_none());
     }
 }

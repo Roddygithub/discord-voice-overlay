@@ -31,7 +31,7 @@ threads. GTK work remains on GLib's main context.
 
 ## Plugin Tooling
 
-The standalone `plugin/` package supplies ESLint 8, typescript-eslint 6,
+The standalone `plugin/` package supplies ESLint 8, typescript-eslint 8,
 TypeScript 5, and Vitest 4 for local lint and pure/native socket tests. It is
 not the production compiler. Production compatibility is established by
 copying the five runtime `.ts` files into Vencord's `src/userplugins` tree and
@@ -81,7 +81,7 @@ GNOME/KDE support is not claimed.
 
 ## Intentional Deferrals
 
-- ESLint flat config and current typescript-eslint majors;
+- ESLint flat config;
 - release-action major upgrades;
 - broader compositor and multi-monitor support;
 - a supported end-user plugin distribution channel beyond custom Vencord

@@ -16,7 +16,7 @@ integration.
 
 ```text
 install       detect and configure one native client
-update        reuse current state and rebuild only when needed
+update        reuse current state and rebuild when pinned inputs change
 repair        restore missing project-owned pieces
 status        show clients, ownership, service, and build state
 doctor        check commands, session, and supported clients
@@ -59,7 +59,10 @@ The manager owns only:
 - the selected Vesktop `vencordDir` value, with a rollback copy
 - a Discord injection only when the manager performed it through Vencord
 - the Vesktop voice-control plugin source/build and its settings only when
-  `--omarchy-voice-controls` was selected
+  `--omarchy-voice-controls` was selected. A panel adaptation discovered in an
+  existing Omarchy checkout is treated as user-owned; disable or uninstall
+  requires removing that adaptation manually first rather than reversing
+  unrelated local edits.
 
 The overlay configuration at
 `~/.config/vesktop-voice-overlay/config.toml` is never written or removed.

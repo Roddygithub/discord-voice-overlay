@@ -17,6 +17,7 @@ const VoiceActions = findByPropsLazy("toggleSelfMute", "toggleSelfDeaf");
 const ChannelActions = findByPropsLazy("selectVoiceChannel");
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let lifecycleGeneration = 0;
 
 // rpc.py tracks these across calls, and so do we: the panel reads mute/deaf
 // even in the moments where the voice state store has no self entry.
@@ -176,22 +177,30 @@ export default definePlugin({
     name: "VesktopVoiceControl",
     description: "Exposes Vesktop's voice call state and controls on a local socket for the Omarchy bar",
     authors: [{ name: "Roddy", id: 0n }],
-    tags: ["Voice", "Integration"],
+    tags: ["Voice"],
     start() {
+        const generation = ++lifecycleGeneration;
         Native = VencordNative.pluginHelpers
             .VesktopVoiceControl as NativeModule;
 
         void (async () => {
             const socketPath = await Native.getSocketPath();
+            if (generation !== lifecycleGeneration) return;
             await Native.startControlSocket(socketPath);
+            if (generation !== lifecycleGeneration) {
+                await Native.stopControlSocket();
+                return;
+            }
             publish();
         })();
 
         pollTimer = setInterval(poll, 150);
     },
     stop() {
+        lifecycleGeneration++;
         if (pollTimer) clearInterval(pollTimer);
         pollTimer = null;
+        speakingUsers.clear();
         void Native?.stopControlSocket();
     },
     flux: {

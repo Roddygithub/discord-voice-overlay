@@ -3,6 +3,8 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+REPO_ROOT="$SCRIPT_DIR"
+PLUGIN_SOURCE_PATH="$SCRIPT_DIR/plugin/src/index.ts"
 INSTALLER="$SCRIPT_DIR/install.sh"
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/discord-voice-overlay-tests.XXXXXX")
 MOCK_BIN="$TEST_ROOT/bin"
@@ -190,6 +192,9 @@ EOF
     export XDG_CONFIG_HOME="$CASE_HOME/.config"
     export XDG_DATA_HOME="$CASE_HOME/.local/share"
     export XDG_STATE_HOME="$CASE_HOME/.local/state"
+    export XDG_RUNTIME_DIR="$CASE_ROOT/runtime"
+    mkdir -p -- "$XDG_RUNTIME_DIR"
+    chmod 700 "$XDG_RUNTIME_DIR"
     export DVO_SYSTEM_ROOT="$CASE_SYSTEM"
     export DVO_MANAGED_ROOT="$CASE_HOME/.local/share/discord-voice-overlay"
     export DVO_OVERLAY_BINARY="$CASE_ROOT/overlay"
@@ -234,6 +239,15 @@ case_invalid_overrides() {
     pass 'invalid installer overrides fail with actionable errors'
 }
 
+case_dry_run_without_binary() {
+    make_fixture vesktop
+    unset DVO_OVERLAY_BINARY
+    run_installer install --client vesktop --yes --dry-run > "$CASE_ROOT/dry-run" 2>&1
+    assert_contains '[dry-run]' "$CASE_ROOT/dry-run"
+    assert_not_file "$STATE_FILE_FIXTURE"
+    pass 'new-install dry-run does not require a local overlay binary'
+}
+
 case_vesktop_lifecycle() {
     make_fixture vesktop
     mkdir -p -- "$CASE_HOME/.config/vesktop-voice-overlay"
@@ -262,12 +276,27 @@ case_vesktop_lifecycle() {
     fi
     assert_contains 'vencordDir' "$CASE_HOME/.config/vesktop/state.json"
     assert_contains 'keep this config' "$CASE_HOME/.config/vesktop-voice-overlay/config.toml"
-    builds_before=$(grep -Fc 'build' "$MOCK_LOG" || true)
     settings_after_install=$(sha256sum "$VENCORD_SETTINGS_FIXTURE" | cut -d' ' -f1)
     run_installer install --client vesktop --yes
     [[ "$(sha256sum "$VENCORD_SETTINGS_FIXTURE" | cut -d' ' -f1)" == "$settings_after_install" ]] ||
         fail 'repeat install rewrote Vencord settings'
+    source_copy="$CASE_ROOT/source-copy"
+    mkdir -p -- "$source_copy/plugin/src"
+    cp -p "$REPO_ROOT/plugin/src/"*.ts "$source_copy/plugin/src/"
+    cp -a -- "$REPO_ROOT/integrations" "$source_copy/"
+    export DVO_TEST_SOURCE_ROOT="$source_copy"
+    PLUGIN_SOURCE_PATH="$source_copy/plugin/src/index.ts"
+    cp -p "$PLUGIN_SOURCE_PATH" "$CASE_ROOT/plugin-index.ts"
+    printf '\n// update fixture\n' >> "$PLUGIN_SOURCE_PATH"
+    if ! run_installer update; then
+        unset DVO_TEST_SOURCE_ROOT
+        fail 'managed Vencord update rejected a changed project plugin'
+    fi
     run_installer update
+    unset DVO_TEST_SOURCE_ROOT
+    PLUGIN_SOURCE_PATH="$REPO_ROOT/plugin/src/index.ts"
+    run_installer update
+    builds_before=$(grep -Fc 'build' "$MOCK_LOG" || true)
     node -e 'const fs=require("fs"),p=process.argv[1],d=JSON.parse(fs.readFileSync(p,"utf8")); d.plugins.VesktopVoiceOverlay.enabled=false; fs.writeFileSync(p,JSON.stringify(d,null,4)+"\n")' "$VENCORD_SETTINGS_FIXTURE"
     run_installer repair
     assert_plugin_enabled "$VENCORD_SETTINGS_FIXTURE"
@@ -279,6 +308,7 @@ case_vesktop_lifecycle() {
     node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (d.plugins.VesktopVoiceOverlay.enabled !== false) process.exit(1)' "$VENCORD_SETTINGS_FIXTURE" ||
         fail 'uninstall did not restore the pre-repair plugin state'
     assert_contains 'windowBounds' "$CASE_HOME/.config/vesktop/state.json"
+    assert_not_contains 'vencordDir' "$CASE_HOME/.config/vesktop/state.json"
     assert_contains 'keep this config' "$CASE_HOME/.config/vesktop-voice-overlay/config.toml"
     run_installer uninstall
     pass 'Vesktop install, repeat, update, repair, uninstall, and config preservation'
@@ -312,6 +342,13 @@ case_omarchy_voice_controls_lifecycle() {
 
     run_installer update
     assert_omarchy_voice_plugin_enabled "$OMARCHY_VOICE_SETTINGS_FIXTURE"
+    if run_installer update --no-omarchy-voice-controls > "$CASE_ROOT/disable-with-panel-adaptation" 2>&1; then
+        fail 'bridge disable unexpectedly removed an unowned panel adaptation'
+    fi
+    assert_contains 'omarchy_voice_controls=1' "$STATE_FILE_FIXTURE"
+    assert_file "$DVO_MANAGED_ROOT/omarchy-discord/panel-adaptation.patch"
+    git -C "$panel_repo" checkout -- Rpc.qml
+    rm -f -- "$DVO_MANAGED_ROOT/omarchy-discord/panel-adaptation.patch"
     run_installer update --no-omarchy-voice-controls
     assert_contains 'omarchy_voice_controls=0' "$STATE_FILE_FIXTURE"
     node -e 'const fs=require("fs"),d=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if (d.plugins.VesktopVoiceControl.enabled !== false || d.appearance.keep !== true) process.exit(1)' "$OMARCHY_VOICE_SETTINGS_FIXTURE" ||
@@ -319,14 +356,29 @@ case_omarchy_voice_controls_lifecycle() {
     assert_not_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
     assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
     assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/rpc-adapter.py"
+    assert_not_contains 'rpc-adapter.py' "$panel_repo/Rpc.qml"
     assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.service"
     assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.timer"
 
+    printf 'local bridge adapter\n' >> "$panel_repo/Rpc.qml"
+    run_installer update --omarchy-voice-controls
+    assert_file "$DVO_MANAGED_ROOT/vencord/src/userplugins/vesktopVoiceControl/index.ts"
+    assert_contains 'local bridge adapter' "$panel_repo/Rpc.qml"
+
+    if run_installer uninstall > "$CASE_ROOT/uninstall-with-panel-adaptation" 2>&1; then
+        fail 'uninstall unexpectedly removed an unowned panel adaptation'
+    fi
+    assert_file "$STATE_FILE_FIXTURE"
+    git -C "$panel_repo" checkout -- Rpc.qml
+    rm -f -- "$DVO_MANAGED_ROOT/omarchy-discord/panel-adaptation.patch"
     run_installer uninstall
     cmp -s "$OMARCHY_VOICE_SETTINGS_FIXTURE" "$CASE_ROOT/voice-settings.before" ||
         fail 'optional voice-control setting was not restored on uninstall'
+    assert_not_contains 'local bridge adapter' "$panel_repo/Rpc.qml"
+    assert_not_file "$DVO_MANAGED_ROOT/omarchy-discord/vbridge.py"
     assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.service"
     assert_not_file "$CASE_HOME/.config/systemd/user/discord-voice-overlay-omarchy-update.timer"
+    assert_contains 'systemctl --user stop discord-voice-overlay-omarchy-update.service' "$MOCK_LOG"
     pass 'opt-in Vesktop bridge build, update, disable, and settings rollback'
 }
 
@@ -509,6 +561,7 @@ case_checksum_and_path_guards() {
 
 case_no_client
 case_invalid_overrides
+case_dry_run_without_binary
 case_vesktop_lifecycle
 case_omarchy_voice_controls_lifecycle
 case_discord_lifecycle

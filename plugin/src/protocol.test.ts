@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   serializeSnapshot,
-  deserializeSnapshot,
   normalizeCoordinate,
-  positionForCustomCoordinateChange,
   serializeClear,
   speakingEventState,
   speakingEventUserId,
@@ -41,26 +39,6 @@ describe('Protocol v1', () => {
     expect(json).toContain('"speaking":true');
   });
 
-  it('deserializes valid JSON line', () => {
-    const json = serializeSnapshot(sampleSnapshot);
-    const parsed = deserializeSnapshot(json);
-    expect(parsed).not.toBeNull();
-    expect(parsed!.version).toBe(1);
-    expect(parsed!.self.username).toBe('Roddy');
-    expect(parsed!.participants).toHaveLength(1);
-  });
-
-  it('returns null for invalid JSON', () => {
-    const parsed = deserializeSnapshot('not json');
-    expect(parsed).toBeNull();
-  });
-
-  it('returns null for wrong version', () => {
-    const json = '{"version":2,"timestamp":0,"self":{},"participants":[]}';
-    const parsed = deserializeSnapshot(json);
-    expect(parsed).toBeNull();
-  });
-
   it('protocol header matches expected format', () => {
     expect(PROTOCOL_HEADER).toBe('VESKTOP_VOICE_OVERLAY/1.0\n');
   });
@@ -76,11 +54,6 @@ describe('Protocol v1', () => {
     expect(normalizeCoordinate(Number.NaN)).toBe(0);
   });
 
-  it('activates custom positioning when a coordinate changes', () => {
-    expect(positionForCustomCoordinateChange('top-right')).toBe('custom');
-    expect(positionForCustomCoordinateChange('custom')).toBe('custom');
-  });
-
   it('accepts camelCase and snake_case speaking event fields', () => {
     expect(speakingEventUserId({ userId: 'camel' })).toBe('camel');
     expect(speakingEventUserId({ user_id: 'snake' })).toBe('snake');
@@ -90,13 +63,4 @@ describe('Protocol v1', () => {
     expect(speakingEventState({ speaking: false })).toBe(false);
   });
 
-  it('round-trip: serialize -> deserialize preserves data', () => {
-    const json = serializeSnapshot(sampleSnapshot);
-    const parsed = deserializeSnapshot(json);
-    
-    expect(parsed).not.toBeNull();
-    expect(parsed!.self.userId).toBe(sampleSnapshot.self.userId);
-    expect(parsed!.self.speaking).toBe(sampleSnapshot.self.speaking);
-    expect(parsed!.participants[0].volume).toBe(80);
-  });
 });

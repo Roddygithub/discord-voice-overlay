@@ -8,11 +8,15 @@ import net from "node:net";
 
 const PROTOCOL_HEADER = "VESKTOP_VOICE_CONTROL/1.0";
 const MAX_COMMAND_LINE = 4096;
+const MAX_COMMAND_BUFFER = MAX_COMMAND_LINE;
 const MAX_QUEUED_COMMANDS = 100;
+const MAX_CLIENTS = 4;
+const MAX_PENDING_STATE_BYTES = 16 * 1024;
 
 type Client = {
     socket: net.Socket;
     buffer: string;
+    pendingState: string | null;
 };
 
 let server: net.Server | null = null;
@@ -20,26 +24,51 @@ let clients = new Set<Client>();
 let commandQueue: string[] = [];
 
 export function getSocketPath(_: IpcMainInvokeEvent): string {
-    const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`;
+    const uid = typeof process.getuid === "function" ? process.getuid() : 0;
+    const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${uid}`;
     return `${runtimeDir}/vesktop-voice-control.sock`;
 }
 
-export function startControlSocket(_: IpcMainInvokeEvent, socketPath: string): void {
-    stopControlSocket(_);
+export function startControlSocket(event: IpcMainInvokeEvent, _socketPath: string): void {
+    stopControlSocket(event);
+    const socketPath = getSocketPath(event);
 
     try {
+        const stat = fs.lstatSync(socketPath);
+        if (!stat.isSocket()) {
+            throw new Error(`refusing to replace non-socket path: ${socketPath}`);
+        }
         fs.unlinkSync(socketPath);
-    } catch {
-        // No stale socket; nothing to clean.
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
 
     server = net.createServer(client => {
-        const entry: Client = { socket: client, buffer: "" };
+        if (clients.size >= MAX_CLIENTS) {
+            client.destroy();
+            return;
+        }
+        const entry: Client = { socket: client, buffer: "", pendingState: null };
         clients.add(entry);
         client.write(`${PROTOCOL_HEADER}\n`);
 
+        client.on("drain", () => {
+            if (!entry.pendingState || client.destroyed) return;
+            const pending = entry.pendingState;
+            entry.pendingState = null;
+            try {
+                if (!client.write(pending)) entry.pendingState = pending;
+            } catch {
+                client.destroy();
+            }
+        });
+
         client.on("data", (data: Buffer) => {
             entry.buffer += data.toString();
+            if (Buffer.byteLength(entry.buffer) > MAX_COMMAND_BUFFER) {
+                client.destroy();
+                return;
+            }
             let index: number;
             while ((index = entry.buffer.indexOf("\n")) !== -1) {
                 const line = entry.buffer.slice(0, index).trim();
@@ -54,6 +83,7 @@ export function startControlSocket(_: IpcMainInvokeEvent, socketPath: string): v
         client.on("close", remove);
         client.on("error", remove);
     });
+    server.maxConnections = MAX_CLIENTS;
 
     server.on("error", err => {
         console.error("[VesktopVoiceControl] server error:", err.message);
@@ -69,13 +99,22 @@ export function startControlSocket(_: IpcMainInvokeEvent, socketPath: string): v
 }
 
 export function publishState(_: IpcMainInvokeEvent, line: string): void {
-    if (typeof line !== "string" || line.length === 0 || line.length > 8192) return;
+    if (typeof line !== "string" || line.length === 0 || Buffer.byteLength(line) > 8192) return;
+    const payload = `${line}\n`;
     for (const entry of [...clients]) {
         if (entry.socket.destroyed) {
             clients.delete(entry);
             continue;
         }
-        entry.socket.write(`${line}\n`);
+        if (entry.pendingState || entry.socket.writableNeedDrain || entry.socket.writableLength > MAX_PENDING_STATE_BYTES) {
+            entry.pendingState = payload;
+            continue;
+        }
+        try {
+            entry.socket.write(payload);
+        } catch {
+            entry.socket.destroy();
+        }
     }
 }
 

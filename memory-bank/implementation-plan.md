@@ -119,7 +119,7 @@ E2E complet, robustesse, UX, configuration.
 | P3.7 | **Thème adaptatif** | CSS suit GTK theme (light/dark), speaking pulse color configurable | Auto light/dark, pulse visible |
 | P3.8 | **Accessibilité** | Tooltips, keyboard nav (même si click-through), screen reader labels | a11y basique |
 | P3.9 | **Performance** | CPU < 1% idle, < 5% actif, RAM < 50MB | `htop` / `cargo flamegraph` |
-| P3.10 | **Logs & Debug** | `RUST_LOG=debug`, structured logging, socket traffic optionnel | Debug facile sans spam |
+| P3.10 | **Logs & Debug** | `--debug`, structured logging, socket traffic optionnel | Debug facile sans spam |
 
 ### Définition de Done P3
 - [ ] E2E complet : join → speak → leave → overlay suit
@@ -243,7 +243,7 @@ cd plugin && npm test
 cd ../overlay && cargo test
 
 # Lancer overlay seul (debug)
-RUST_LOG=debug ./overlay/target/release/vesktop-voice-overlay
+./overlay/target/release/vesktop-voice-overlay --debug
 
 # Test socket manuel
 echo 'VESKTOP_VOICE_OVERLAY/1.0
