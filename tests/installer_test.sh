@@ -263,6 +263,16 @@ case_piped_installer() {
     pass 'one-command piped installer works without a checkout'
 }
 
+case_vesktop_bin_layout() {
+    make_fixture vesktop
+    rm -rf -- "$CASE_SYSTEM/usr/lib/vesktop"
+    mkdir -p -- "$CASE_SYSTEM/opt/vesktop"
+    run_installer install --client vesktop --yes
+    assert_file "$STATE_FILE_FIXTURE"
+    assert_plugin_enabled "$VENCORD_SETTINGS_FIXTURE"
+    pass 'vesktop-bin /opt layout is detected as native Vesktop'
+}
+
 case_vesktop_lifecycle() {
     make_fixture vesktop
     mkdir -p -- "$CASE_HOME/.config/vesktop-voice-overlay"
@@ -578,6 +588,7 @@ case_no_client
 case_invalid_overrides
 case_dry_run_without_binary
 case_piped_installer
+case_vesktop_bin_layout
 case_vesktop_lifecycle
 case_omarchy_voice_controls_lifecycle
 case_discord_lifecycle

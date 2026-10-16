@@ -530,8 +530,10 @@ detect_native_clients() {
     local vesktop_bin discord_bin
     vesktop_bin=$(system_path /usr/bin/vesktop)
     discord_bin=$(system_path /usr/bin/discord)
-    if [[ -x "$vesktop_bin" && -d "$(system_path /usr/lib/vesktop)" ]] &&
-        package_owns "$vesktop_bin" vesktop; then
+    if [[ -x "$vesktop_bin" ]] && {
+        { [[ -d "$(system_path /usr/lib/vesktop)" ]] && package_owns "$vesktop_bin" vesktop; } ||
+        { [[ -d "$(system_path /opt/vesktop)" ]] && package_owns "$vesktop_bin" vesktop-bin; };
+    }; then
         CLIENT_VESKTOP_NATIVE=1
     fi
     if [[ -x "$discord_bin" && -d "$(system_path /usr/share/discord)" ]] &&
