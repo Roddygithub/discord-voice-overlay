@@ -23,7 +23,7 @@
   XDG runtime path itself, bounds command buffers/clients, and refuses to remove
   a saved panel diff whose ownership cannot be proven.
 
-## Installer Architecture (Candidate v1.4.0)
+## Installer Architecture (v1.4.0)
 
 - The installer is a user-run Bash manager with `install`, `update`, `repair`,
   `status`, `doctor`, and `uninstall` commands plus `--client`, `--dry-run`,

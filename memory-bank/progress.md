@@ -54,8 +54,25 @@
   builds, binary `--version`, plugin lint/tests (`20/20`), npm audit (`0`),
   package dry-run, ShellCheck, installer fixtures, Python bridge tests, local
   documentation links, and `git diff --check`.
-- The existing managed Vesktop installation remains on the stable `1.3.0`
-  release until the tagged `1.4.0` GitHub assets are published and verified.
+- The managed Vesktop installation was updated from `1.3.0` to `1.4.0` after
+  release publication; the binary, plugin bundles, service, checksums, and
+  installer `status`/`doctor` checks are all confirmed.
+
+## v1.4.0 release and local deployment — 2026-10-16
+
+- Annotated tag `v1.4.0` and GitHub Release are published from commit
+  `d166109`; the release workflow passed overlay validation/build, pinned
+  Vencord build and typecheck, plugin packaging, and checksum generation.
+- Release assets are `vesktop-voice-overlay`,
+  `vesktop-voice-overlay-plugin-1.4.0.tgz`, and `SHA256SUMS`; both assets match
+  the published checksums and the binary reports `vesktop-voice-overlay 1.4.0`.
+- The user-managed Vesktop installation now runs overlay `1.4.0`, keeps the
+  pinned Vencord revision, has both requested userplugins in the desktop
+  bundle, and has `vesktop-voice-overlay.service` enabled, active, and at zero
+  restarts. The optional Omarchy voice-control bridge remains enabled.
+- AUR publication was skipped by the workflow because `AUR_SSH_PRIVATE_KEY`
+  is not configured; the source template is versioned and ready for a
+  maintainer key.
 
 ## Repository professionalization audit — 2026-10-16
 
