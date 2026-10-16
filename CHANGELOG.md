@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [1.4.1] - 2026-10-16
+
+### Changed
+- One-command installation now works directly from the documented `curl | bash`
+  command without requiring a repository checkout.
+- Refreshed the README hero capture with a clean, authentic Wayland validation
+  screenshot and explicit synthetic-demo labeling.
+
 ## [1.4.0] - 2026-10-16
 
 ### Added

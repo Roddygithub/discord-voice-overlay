@@ -42,6 +42,21 @@
 
 ## Statut Global
 
+## v1.4.1 release preparation — 2026-10-16
+
+- Added a checkout-free installer path: piping the published `install.sh` from
+  GitHub automatically downloads the matching tagged source for the plugin
+  build, while local checkouts and test source roots remain supported.
+- Replaced the terminal-backed hero image with a real local Wayland capture on
+  a neutral validation backdrop; identities remain synthetic and documented.
+- Issue #21 is resolved for the supported fixed-monitor scope already shipped:
+  `Monitor 0`–`Monitor 3` apply immediately from Vencord settings. Cursor
+  tracking and hotplug remain explicitly experimental because the prior
+  remediation exposed an unresolved GTK/Wayland crash during topology changes.
+- The one-command installer fixture, Bash syntax, ShellCheck, plugin tests, and
+  the local screenshot capture have passed; release gates will run again for
+  the versioned `1.4.1` tag.
+
 ## v1.4.0 release preparation — 2026-10-16
 
 - Version alignment is complete at `1.4.0` for the installer, overlay binary,

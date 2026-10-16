@@ -3,12 +3,13 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 PRODUCT_NAME="Discord Voice Overlay"
-INSTALLER_VERSION="1.4.0"
-OVERLAY_VERSION="${DVO_OVERLAY_VERSION:-1.4.0}"
+INSTALLER_VERSION="1.4.1"
+OVERLAY_VERSION="${DVO_OVERLAY_VERSION:-1.4.1}"
 VENCORD_REPO="${DVO_VENCORD_REPO:-https://github.com/Vendicated/Vencord.git}"
 VENCORD_REV="${DVO_VENCORD_REV:-3374b8a9d8f6b051c64204917360293aad7f5d75}"
 RELEASE_REPO="Roddygithub/discord-voice-overlay"
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+SCRIPT_ENTRY="${BASH_SOURCE[0]:-.}"
+SCRIPT_DIR=$(cd -- "$(dirname -- "$SCRIPT_ENTRY")" && pwd -P)
 SOURCE_ROOT="$SCRIPT_DIR"
 if [[ "${DVO_TEST_MODE:-0}" == 1 && -n "${DVO_TEST_SOURCE_ROOT:-}" ]]; then
     SOURCE_ROOT=$(realpath -m -- "$DVO_TEST_SOURCE_ROOT")
@@ -309,6 +310,24 @@ remove_owned_tree() {
 }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"; }
+
+ensure_source_root() {
+    [[ -f "$SOURCE_ROOT/plugin/src/index.ts" &&
+        -f "$SOURCE_ROOT/overlay/Cargo.toml" ]] && return 0
+    if [[ "${DVO_TEST_MODE:-0}" == 1 ]]; then
+        [[ -f "$SOURCE_ROOT/plugin/src/index.ts" ]] ||
+            die "test source root is incomplete: $SOURCE_ROOT"
+        return 0
+    fi
+    need_cmd git
+    local bootstrap_root
+    bootstrap_root=$(mktemp -d "${TMPDIR:-/tmp}/discord-voice-overlay.XXXXXX")
+    TEMP_PATHS+=("$bootstrap_root")
+    git clone --quiet --depth 1 --branch "v$OVERLAY_VERSION" --single-branch \
+        "https://github.com/$RELEASE_REPO.git" "$bootstrap_root/source" ||
+        die "could not download Discord Voice Overlay v$OVERLAY_VERSION"
+    SOURCE_ROOT="$bootstrap_root/source"
+}
 
 require_user() {
     local managed_root data_root
@@ -1759,6 +1778,7 @@ doctor_cmd() {
 
 install_cmd() {
     require_user
+    ensure_source_root
     detect_native_clients
     select_client
     resolve_omarchy_voice_controls
@@ -1925,6 +1945,6 @@ parse_args() {
     esac
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+if [[ "${BASH_SOURCE[0]:-}" == "$0" || -z "${BASH_SOURCE[0]:-}" ]]; then
     parse_args "$@"
 fi

@@ -181,7 +181,7 @@ EOF
     FAKE_VENCORD_REV=$(git -C "$CASE_ROOT/vencord-source" rev-parse HEAD)
     cat > "$CASE_ROOT/overlay" <<'EOF'
 #!/usr/bin/env bash
-[[ "${1:-}" == --version ]] && printf 'vesktop-voice-overlay 1.4.0\n'
+[[ "${1:-}" == --version ]] && printf 'vesktop-voice-overlay 1.4.1\n'
 EOF
     chmod 755 "$CASE_ROOT/overlay"
     export CASE_HOME CASE_SYSTEM MOCK_LOG FAKE_VENCORD_REV STATE_FILE_FIXTURE \
@@ -206,6 +206,10 @@ EOF
 
 run_installer() {
     "$INSTALLER" "$@"
+}
+
+run_piped_installer() {
+    env DVO_TEST_MODE=1 DVO_TEST_SOURCE_ROOT="$REPO_ROOT" bash -s "$@" < "$INSTALLER"
 }
 
 assert_plugin_enabled() {
@@ -246,6 +250,17 @@ case_dry_run_without_binary() {
     assert_contains '[dry-run]' "$CASE_ROOT/dry-run"
     assert_not_file "$STATE_FILE_FIXTURE"
     pass 'new-install dry-run does not require a local overlay binary'
+}
+
+case_piped_installer() {
+    make_fixture vesktop
+    unset DVO_OVERLAY_BINARY
+    if ! run_piped_installer install --client vesktop --yes --dry-run > "$CASE_ROOT/piped" 2>&1; then
+        fail 'one-command piped installer failed'
+    fi
+    assert_contains '[dry-run]' "$CASE_ROOT/piped"
+    assert_not_file "$STATE_FILE_FIXTURE"
+    pass 'one-command piped installer works without a checkout'
 }
 
 case_vesktop_lifecycle() {
@@ -562,6 +577,7 @@ case_checksum_and_path_guards() {
 case_no_client
 case_invalid_overrides
 case_dry_run_without_binary
+case_piped_installer
 case_vesktop_lifecycle
 case_omarchy_voice_controls_lifecycle
 case_discord_lifecycle

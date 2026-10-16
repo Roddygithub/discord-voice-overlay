@@ -11,14 +11,14 @@ A native Wayland voice activity overlay for Discord Desktop and Vesktop on Linux
 See who is speaking without touching the game process: participant names and
 avatars, speaking and mute/deaf indicators, configurable position and monitor,
 and native click-through. It is a shared custom Vencord plugin plus a Rust
-overlay, installed and managed by the v1.4.0 universal installer.
+overlay, installed and managed by the v1.4.1 universal installer.
 
 > The overlay is rendered by the compositor, not injected into the game process.
 
 ![Discord Voice Overlay showing synthetic participants and speaking indicators](docs/assets/overlay-game.png)
 
-_Real overlay render from a local Wayland validation session; the displayed
-participant names are synthetic._
+_Real overlay render from a local Wayland validation session on a neutral demo
+backdrop; the displayed participant names are synthetic._
 
 ## Contents
 
@@ -46,7 +46,7 @@ participant names are synthetic._
 - 🎮 **Game compatible** — click-through overlay works over fullscreen XWayland games
 - 🔄 **Auto-reconnect** — fast bounded backoff (≤ 2 s) if Discord Desktop, Vesktop, or the overlay restarts; the latest settings and voice snapshot are replayed automatically so no voice activity is needed to repopulate the overlay
 - 🚀 **Session autostart** — ships a `systemd --user` service (`vesktop-voice-overlay.service`)
-- 🧰 **Universal manager** — v1.4.0 provides `install`, `status`, `doctor`, `update`, `repair`, and `uninstall` for supported native clients
+- 🧰 **Universal manager** — v1.4.1 provides `install`, `status`, `doctor`, `update`, `repair`, and `uninstall` for supported native clients
 
 ## How it compares
 
@@ -68,9 +68,26 @@ session.
 
 ## Installation
 
-### Universal installer (Arch Linux / Omarchy)
+### One-command install (Arch Linux / Omarchy)
 
-The primary v1.4.0 installation path manages the overlay and one native Vencord
+The recommended path needs no checkout and no root access:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Roddygithub/discord-voice-overlay/main/install.sh | bash -s -- install
+```
+
+The installer downloads the matching tagged source automatically, verifies the
+release binary, builds the pinned Vencord integration, enables the plugin, and
+starts the user service. If both supported clients are installed, choose one
+explicitly:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Roddygithub/discord-voice-overlay/main/install.sh | bash -s -- install --client vesktop
+```
+
+For a reviewable local checkout instead, use the equivalent two-step form:
+
+The primary v1.4.1 installation path manages the overlay and one native Vencord
 client without changing pacman packages or requiring root. It supports native
 Arch Linux Discord Desktop and Vesktop installations:
 
@@ -205,7 +222,7 @@ cleanly with `another vesktop-voice-overlay instance owns ...` and exit code 1.
 
 The paths below are for development, unsupported packaging variants, or users
 who intentionally manage the client integration themselves. They are not the
-primary v1.4.0 installation path.
+primary v1.4.1 installation path.
 
 ### Quick start (Arch Linux / Hyprland)
 
