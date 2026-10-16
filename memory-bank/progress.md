@@ -42,6 +42,18 @@
 
 ## Statut Global
 
+## vesktop-bin installer compatibility — 2026-10-16
+
+- The laptop deployment exposed a legitimate native Vesktop packaging variant:
+  `vesktop-bin` owns `/usr/bin/vesktop` and installs the application under
+  `/opt/vesktop`, rather than using the repository package's `/usr/lib/vesktop`
+  layout.
+- Extended native-client detection to accept both layouts while preserving the
+  pacman ownership check; custom, AppImage, and unsupported Flatpak installs
+  remain rejected.
+- Added an installer fixture for the `/opt/vesktop`/`vesktop-bin` layout; Bash
+  syntax, ShellCheck, and the complete installer fixture suite pass.
+
 ## v1.4.1 release preparation — 2026-10-16
 
 - Added a checkout-free installer path: piping the published `install.sh` from

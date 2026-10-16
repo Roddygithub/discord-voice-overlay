@@ -65,6 +65,9 @@
   at `<XDG_CONFIG_HOME>/vesktop/settings/settings.json`. The manager selects the
   matching file and structurally enables only its owned plugin keys, preserving
   unrelated settings and restoring backups only when the file is unchanged.
+- Native Vesktop detection accepts both the Arch `vesktop` package layout
+  (`/usr/lib/vesktop`) and the common `vesktop-bin` layout (`/opt/vesktop`),
+  while requiring pacman ownership of the launcher in either case.
 - Live acceptance confirmed the enabled settings are consumed by native
   Discord: the renderer started `VesktopVoiceOverlay`, and the managed overlay
   accepted the same-user client connection and initial messages.
