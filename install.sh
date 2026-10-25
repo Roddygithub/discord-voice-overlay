@@ -97,7 +97,7 @@ CLIENT_DISCORD_FLATPAK=0
 
 info() { printf '%s\n' "$*"; }
 warn() { printf 'Warning: %s\n' "$*" >&2; }
-die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+die() { printf 'Error: %s\n' "$*" >&2; trap - ERR; exit 1; }
 
 [[ "$OVERLAY_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid overlay version: $OVERLAY_VERSION"
 [[ "$VENCORD_REV" =~ ^[[:xdigit:]]{40}$ ]] || die "invalid Vencord revision: $VENCORD_REV"
@@ -281,6 +281,15 @@ cleanup() {
     return "$exit_status"
 }
 trap cleanup EXIT
+
+ERR_REPORTED=0
+report_unexpected_error() {
+    local status="$1" line="$2" command="$3"
+    (( ERR_REPORTED )) && return 0
+    ERR_REPORTED=1
+    printf 'Error: unexpected failure (exit %s) at install.sh:%s: %s\n' "$status" "$line" "$command" >&2
+}
+trap 'report_unexpected_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
 
 canonical() { realpath -m -- "$1"; }
 
@@ -522,18 +531,17 @@ detect_flatpaks() {
     local apps
     command -v flatpak >/dev/null 2>&1 || return 0
     apps=$(flatpak list --app --columns=application 2>/dev/null || true)
-    grep -Fxq 'dev.vencord.Vesktop' <<<"$apps" && CLIENT_VESKTOP_FLATPAK=1
-    grep -Fxq 'com.discordapp.Discord' <<<"$apps" && CLIENT_DISCORD_FLATPAK=1
+    if grep -Fxq 'dev.vencord.Vesktop' <<<"$apps"; then CLIENT_VESKTOP_FLATPAK=1; fi
+    if grep -Fxq 'com.discordapp.Discord' <<<"$apps"; then CLIENT_DISCORD_FLATPAK=1; fi
 }
 
 detect_native_clients() {
     local vesktop_bin discord_bin
     vesktop_bin=$(system_path /usr/bin/vesktop)
     discord_bin=$(system_path /usr/bin/discord)
-    if [[ -x "$vesktop_bin" ]] && {
-        { [[ -d "$(system_path /usr/lib/vesktop)" ]] && package_owns "$vesktop_bin" vesktop; } ||
-        { [[ -d "$(system_path /opt/vesktop)" ]] && package_owns "$vesktop_bin" vesktop-bin; };
-    }; then
+    if [[ -x "$vesktop_bin" ]] &&
+        { [[ -d "$(system_path /usr/lib/vesktop)" ]] || [[ -d "$(system_path /opt/vesktop)" ]]; } &&
+        { package_owns "$vesktop_bin" vesktop || package_owns "$vesktop_bin" vesktop-bin; }; then
         CLIENT_VESKTOP_NATIVE=1
     fi
     if [[ -x "$discord_bin" && -d "$(system_path /usr/share/discord)" ]] &&
