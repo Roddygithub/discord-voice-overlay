@@ -167,6 +167,12 @@ EOF
 printf 'com.discordapp.Discord\n'
 EOF
         chmod 755 "$MOCK_BIN/flatpak"
+    elif [[ "$state_mode" == unrelated-flatpak ]]; then
+        cat > "$MOCK_BIN/flatpak" <<'EOF'
+#!/usr/bin/env bash
+printf 'io.github.trigg.discover_overlay\norg.vinegarhq.Sober\n'
+EOF
+        chmod 755 "$MOCK_BIN/flatpak"
     else
         rm -f -- "$MOCK_BIN/flatpak"
     fi
@@ -271,6 +277,14 @@ case_vesktop_bin_layout() {
     assert_file "$STATE_FILE_FIXTURE"
     assert_plugin_enabled "$VENCORD_SETTINGS_FIXTURE"
     pass 'vesktop-bin /opt layout is detected as native Vesktop'
+}
+
+case_unrelated_flatpaks() {
+    make_fixture vesktop unrelated-flatpak
+    run_installer install --client vesktop --yes --dry-run > "$CASE_ROOT/dry-run" 2>&1 ||
+        fail 'unrelated Flatpak apps aborted client detection'
+    assert_contains '[dry-run]' "$CASE_ROOT/dry-run"
+    pass 'unrelated Flatpak apps do not abort client detection'
 }
 
 case_vesktop_lifecycle() {
@@ -589,6 +603,7 @@ case_invalid_overrides
 case_dry_run_without_binary
 case_piped_installer
 case_vesktop_bin_layout
+case_unrelated_flatpaks
 case_vesktop_lifecycle
 case_omarchy_voice_controls_lifecycle
 case_discord_lifecycle

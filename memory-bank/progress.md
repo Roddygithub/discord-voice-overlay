@@ -956,3 +956,19 @@ No product or code change.
   into `Distribution`.
 - Hero screenshot/GIF deliberately deferred — placeholder left as an HTML
   comment so the top of the README stays clean until assets exist.
+
+## Installer silent exit fix — 2026-10-25
+
+- `install.sh --client vesktop` exited with status 1 and no output when
+  Flatpak was installed without the Discord Flatpak: the final
+  `grep … && FLAG=1` in `detect_flatpaks` returned non-zero under `set -e`.
+  Replaced with explicit `if` statements.
+- Native Vesktop detection now accepts either `/usr/lib/vesktop` or
+  `/opt/vesktop` owned by `vesktop` or `vesktop-bin` (current `vesktop-bin`
+  ships under `/usr/lib/vesktop`).
+- Added an `ERR` trap that reports the failing line and command, so
+  unexpected `set -e` exits are never silent; `die` disarms it to avoid
+  duplicate messages.
+- New fixture test `case_unrelated_flatpaks`; full installer suite passes.
+- Validated by a real install on CachyOS (vesktop-bin 1.6.8, pnpm 12.15.0):
+  managed Vencord built, service active, Vesktop `vencordDir` configured.
