@@ -47,7 +47,7 @@ legacy_service_content() {
 }
 
 legacy_timer_content() {
-    printf '[Unit]\nDescription=Check Vesktop and Vencord updates every two hours\n\n[Timer]\nOnBootSec=10m\nOnUnitActiveSec=2h\nPersistent=true\nUnit=%s\n\n[Install]\nWantedBy=timers.target\n' "$timer_name"
+    printf '[Unit]\nDescription=Check Vesktop and Vencord updates every two hours\n\n[Timer]\nOnBootSec=10m\nOnUnitActiveSec=2h\nPersistent=true\nUnit=%s\n\n[Install]\nWantedBy=timers.target\n' "$service_name"
 }
 
 is_managed_timer() {
