@@ -43,7 +43,7 @@ timer_content() {
 
 legacy_service_content() {
     printf '[Unit]\nDescription=Keep Discord Voice Overlay compatible with Vesktop and Vencord\n\n[Service]\nType=oneshot\nExecStart=%s\nTimeoutStartSec=35min\n' \
-        "$(escape_systemd "$HOME/.local/bin/discord-voice-overlay-auto-update")"
+        "$HOME/.local/bin/discord-voice-overlay-auto-update"
 }
 
 legacy_timer_content() {
