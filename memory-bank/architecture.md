@@ -100,9 +100,10 @@ pointing at `scripts/auto-update.sh` in a persistent clone of this repository.
 The updater supports native Vesktop packages only, fetches project `main` only
 when the checkout is clean, resolves current Vencord HEAD, waits for Vesktop to
 exit, and invokes the install manager's transactional update/repair commands.
-Codex repair is an explicit service environment opt-in; it runs only after both
-commands fail and receives bounded build-log context in a workspace-write
-sandbox. Generated fixes remain local to the checkout for review.
+AI repair is an explicit service opt-in; it runs only after both commands fail.
+Codex uses its workspace-write sandbox by default. Other providers use a
+user-supplied executable adapter with a documented project-path/prompt/stdin
+contract. Generated fixes remain local to the checkout for review.
 
 ## Runtime Data Path
 

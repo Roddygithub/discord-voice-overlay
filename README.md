@@ -131,15 +131,24 @@ Enable it from a persistent clone of this repository:
 ./scripts/install-auto-update.sh
 ```
 
-Codex can diagnose a failed build, edit this local checkout, and retry repair if
-the Codex CLI is installed and signed in. This behavior is a separate explicit
-opt-in:
+An AI coding agent can diagnose a failed build, edit this local checkout, and
+retry repair. Codex CLI is used by default when available; opt in with:
 
 ```bash
 ./scripts/install-auto-update.sh --ai-repair
 ```
 
-Codex changes remain local for review; the updater never commits or pushes them.
+To use another desktop AI, provide an executable adapter:
+
+```bash
+./scripts/install-auto-update.sh --ai-command /absolute/path/to/ai-adapter
+```
+
+The adapter receives the project path and repair instructions as arguments and
+the last build-log lines on standard input. It must synchronously apply any fix
+and return a success status. The adapter is responsible for limiting its file
+access to this project. AI changes remain local for review; the updater never
+commits or pushes them.
 Remove the timer with `./scripts/install-auto-update.sh --remove`. See
 [`docs/installer.md`](docs/installer.md#automatic-vesktopvencord-updates) for
 requirements and behavior when the checkout has local changes.

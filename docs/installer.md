@@ -147,16 +147,26 @@ From the project checkout, enable the updater with:
 ./scripts/install-auto-update.sh
 ```
 
-Codex-assisted source repair is a separate opt-in. It requires the Codex CLI to
-be installed and signed in; after both normal update and repair fail, Codex is
-given the last 120 log lines as untrusted diagnostic input, limited to a
-workspace-write sandbox, and asked to make and verify the smallest source fix.
-It cannot install packages, change machine settings, push, or publish. Enable
-that mode with `./scripts/install-auto-update.sh --ai-repair`. Any source edits
-remain local in the checkout for review. If the checkout has local changes, the
-updater preserves them and skips fetching project changes until the checkout is
-clean again. The updater never runs for native Discord or unsupported Flatpak
-clients.
+AI-assisted source repair is a separate opt-in. After both normal update and
+repair fail, the chosen agent receives the last 120 log lines as untrusted
+diagnostic input and is asked to make and verify the smallest source fix. With
+`--ai-repair`, the updater selects Codex CLI when installed and signed in; its
+invocation uses the workspace-write sandbox. To use another desktop AI, provide
+a single executable adapter:
+
+```bash
+./scripts/install-auto-update.sh --ai-command /absolute/path/to/ai-adapter
+```
+
+The adapter is called with the project path and repair instructions as its two
+arguments, with diagnostic log lines on standard input. It must run
+synchronously and return success only after it has implemented the repair. A
+custom adapter is responsible for limiting its file access to this checkout
+and for not installing packages, changing machine settings, pushing, or
+publishing. AI source edits remain local for review. If the checkout has local
+changes, the updater preserves them and skips fetching project changes until
+the checkout is clean again. The updater never runs for native Discord or
+unsupported Flatpak clients.
 
 Check the timer with:
 
