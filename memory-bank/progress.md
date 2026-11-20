@@ -1,5 +1,16 @@
 # Progress — Discord Voice Overlay
 
+## v1.4.2 release preparation — 2026-11-20
+
+- Prepared the unreleased Vesktop/Vencord updater and configurable AI repair
+  features for publication, with aligned installer, overlay, plugin, and AUR
+  versions. Updated the compatible plugin lint dependency set after the release
+  workflow's npm audit exposed advisories; audit now reports zero vulnerabilities.
+- Local validation passed: Rust fmt/Clippy, 41 Rust tests, release build, plugin
+  lint and 20 tests, 6 Omarchy bridge tests, and full installer fixtures. The
+  main-branch CI and CodeQL runs for the implementation commits also passed;
+  release-tag gates and downloadable artifacts are pending.
+
 ## Optional Vesktop/Vencord auto-update — 2026-11-20
 
 - Added a user-installed two-hour systemd timer for a persistent canonical Git
