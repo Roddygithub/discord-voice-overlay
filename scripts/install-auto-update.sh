@@ -32,12 +32,27 @@ service_content() {
 
 is_managed_service() {
     [[ -f "$service_path" ]] || return 1
+    cmp -s <(legacy_service_content) "$service_path" && return 0
     sed '/^Environment=DVO_AI_REPAIR=1$/d; /^Environment=DVO_AI_REPAIR_COMMAND=/d' "$service_path" |
         cmp -s - <(service_content)
 }
 
 timer_content() {
     printf '[Unit]\nDescription=Check Discord Voice Overlay updates every two hours\n\n[Timer]\nOnBootSec=10m\nOnUnitActiveSec=2h\nRandomizedDelaySec=10m\nPersistent=true\nUnit=%s\n\n[Install]\nWantedBy=timers.target\n' "$service_name"
+}
+
+legacy_service_content() {
+    printf '[Unit]\nDescription=Keep Discord Voice Overlay compatible with Vesktop and Vencord\n\n[Service]\nType=oneshot\nExecStart=%s\nTimeoutStartSec=35min\n' \
+        "$(escape_systemd "$HOME/.local/bin/discord-voice-overlay-auto-update")"
+}
+
+legacy_timer_content() {
+    printf '[Unit]\nDescription=Check Vesktop and Vencord updates every two hours\n\n[Timer]\nOnBootSec=10m\nOnUnitActiveSec=2h\nPersistent=true\nUnit=%s\n\n[Install]\nWantedBy=timers.target\n' "$timer_name"
+}
+
+is_managed_timer() {
+    [[ -f "$timer_path" ]] || return 1
+    cmp -s <(timer_content) "$timer_path" || cmp -s <(legacy_timer_content) "$timer_path"
 }
 
 usage() {
@@ -68,7 +83,7 @@ if (( remove )); then
         printf 'Leaving a modified or foreign service untouched: %s\n' "$service_path" >&2
         exit 1
     fi
-    if [[ -e "$timer_path" ]] && ! cmp -s <(timer_content) "$timer_path"; then
+    if [[ -e "$timer_path" ]] && ! is_managed_timer; then
         printf 'Leaving a modified or foreign timer untouched: %s\n' "$timer_path" >&2
         exit 1
     fi
@@ -80,10 +95,14 @@ if (( remove )); then
 fi
 
 [[ -d "$project/.git" ]] || { printf 'Automatic updates require a persistent Git checkout.\n' >&2; exit 1; }
-[[ "$(git -C "$project" remote get-url origin)" == https://github.com/Roddygithub/discord-voice-overlay.git ]] || {
-    printf 'Unexpected Git origin; refusing to install the updater.\n' >&2
-    exit 1
-}
+origin=$(git -C "$project" remote get-url origin)
+case "$origin" in
+    https://github.com/Roddygithub/discord-voice-overlay|https://github.com/Roddygithub/discord-voice-overlay.git|git@github.com:Roddygithub/discord-voice-overlay|git@github.com:Roddygithub/discord-voice-overlay.git|ssh://git@github.com/Roddygithub/discord-voice-overlay|ssh://git@github.com/Roddygithub/discord-voice-overlay.git) ;;
+    *)
+        printf 'Unexpected Git origin; refusing to install the updater.\n' >&2
+        exit 1
+        ;;
+esac
 if (( ai_repair )); then
     if [[ -z "$ai_command" ]]; then
         ai_command=$(command -v codex || true)
@@ -102,7 +121,7 @@ if [[ -e "$service_path" ]] && ! is_managed_service; then
     printf 'Refusing to overwrite a modified or foreign service: %s\n' "$service_path" >&2
     exit 1
 fi
-if [[ -e "$timer_path" ]] && ! cmp -s <(timer_content) "$timer_path"; then
+if [[ -e "$timer_path" ]] && ! is_managed_timer; then
     printf 'Refusing to overwrite a modified or foreign timer: %s\n' "$timer_path" >&2
     exit 1
 fi

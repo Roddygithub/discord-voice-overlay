@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 installer="$project/install.sh"
-repo_url="https://github.com/Roddygithub/discord-voice-overlay.git"
+repo_url=$(git -C "$project" remote get-url origin 2>/dev/null || true)
 vencord_repo="https://github.com/Vendicated/Vencord.git"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/discord-voice-overlay"
 state_file="$state_dir/auto-update.env"
@@ -20,10 +20,13 @@ client=$(sed -n 's/^client=//p' "$state_dir/state.env")
 [[ "$client" == vesktop ]] || exit 0
 
 if git -C "$project" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    [[ "$(git -C "$project" remote get-url origin)" == "$repo_url" ]] || {
+    case "$repo_url" in
+        https://github.com/Roddygithub/discord-voice-overlay|https://github.com/Roddygithub/discord-voice-overlay.git|git@github.com:Roddygithub/discord-voice-overlay|git@github.com:Roddygithub/discord-voice-overlay.git|ssh://git@github.com/Roddygithub/discord-voice-overlay|ssh://git@github.com/Roddygithub/discord-voice-overlay.git) ;;
+        *)
         printf 'Unexpected project origin; update skipped.\n' >> "$log_file"
         exit 1
-    }
+            ;;
+    esac
     if [[ -z "$(git -C "$project" status --porcelain)" ]]; then
         git -C "$project" fetch --quiet origin main
         git -C "$project" merge --ff-only --quiet origin/main
