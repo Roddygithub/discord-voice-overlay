@@ -93,6 +93,17 @@
   `~/.config/systemd/user/vesktop-voice-overlay.service`; package/system units
   and conflicting user units are left untouched.
 
+## Optional Vesktop Update Automation
+
+`scripts/install-auto-update.sh` manages a user-owned two-hour systemd timer
+pointing at `scripts/auto-update.sh` in a persistent clone of this repository.
+The updater supports native Vesktop packages only, fetches project `main` only
+when the checkout is clean, resolves current Vencord HEAD, waits for Vesktop to
+exit, and invokes the install manager's transactional update/repair commands.
+Codex repair is an explicit service environment opt-in; it runs only after both
+commands fail and receives bounded build-log context in a workspace-write
+sandbox. Generated fixes remain local to the checkout for review.
+
 ## Runtime Data Path
 
 ```text

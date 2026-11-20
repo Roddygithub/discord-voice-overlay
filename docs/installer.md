@@ -130,3 +130,39 @@ manager leaves it untouched and reports the conflict.
 State is a small mode-600 `key=value` manifest. It contains paths, versions,
 revision, selected client, and rollback hashes only. It contains no token,
 credential, message, session, or voice data.
+
+## Automatic Vesktop/Vencord Updates
+
+Automatic update checks are an optional systemd user timer for native Arch
+Vesktop installations. They require a persistent, clean Git clone of this
+repository with the canonical `origin`, plus `git`, `pacman`, `systemd`, and
+`flock`. The timer checks every two hours for Vesktop's package version, the
+latest Vencord commit, and project changes. It waits until Vesktop exits, then
+runs the managed `update` and `repair` commands. Staged Vencord builds keep the
+previous working installation if a replacement fails.
+
+From the project checkout, enable the updater with:
+
+```bash
+./scripts/install-auto-update.sh
+```
+
+Codex-assisted source repair is a separate opt-in. It requires the Codex CLI to
+be installed and signed in; after both normal update and repair fail, Codex is
+given the last 120 log lines as untrusted diagnostic input, limited to a
+workspace-write sandbox, and asked to make and verify the smallest source fix.
+It cannot install packages, change machine settings, push, or publish. Enable
+that mode with `./scripts/install-auto-update.sh --ai-repair`. Any source edits
+remain local in the checkout for review. If the checkout has local changes, the
+updater preserves them and skips fetching project changes until the checkout is
+clean again. The updater never runs for native Discord or unsupported Flatpak
+clients.
+
+Check the timer with:
+
+```bash
+systemctl --user status discord-voice-overlay-auto-update.timer
+```
+
+Logs are at `~/.local/state/discord-voice-overlay/auto-update.log`. Remove its units with
+`./scripts/install-auto-update.sh --remove` from the same checkout.

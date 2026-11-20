@@ -1,5 +1,18 @@
 # Progress — Discord Voice Overlay
 
+## Optional Vesktop/Vencord auto-update — 2026-11-20
+
+- Added a user-installed two-hour systemd timer for a persistent canonical Git
+  checkout. It checks native Vesktop package version, current Vencord HEAD, and
+  the project checkout, waits for Vesktop to close, and runs staged update then
+  repair while retaining the prior working Vencord build on failure.
+- Added an explicit `--ai-repair` mode. It asks authenticated Codex CLI to
+  diagnose a failed build in a workspace-write sandbox, verify and implement a
+  small source fix, then retries repair. AI source edits stay local; no push or
+  publishing occurs. This mode requires the user to opt in.
+- Added docs for compatibility, activation, removal, and local checkout behavior.
+- `bash -n` and `git diff --check` pass. Test suites were not run.
+
 ## Optional Omarchy Discord voice controls — 2026-10-08
 
 - Added an explicit Vesktop-only installer option to include

@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+- Optional two-hour Vesktop/Vencord/project update timer with staged update and
+  repair attempts for native Arch Vesktop installs.
+- Explicit Codex-assisted repair mode for users with the Codex CLI installed
+  and signed in; fixes remain local for review and are never pushed.
 
 ## [1.4.1] - 2026-10-16
 

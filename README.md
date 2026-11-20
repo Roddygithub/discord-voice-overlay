@@ -120,6 +120,30 @@ is installed from Git, the manager also enables a daily safe updater that keeps
 the local bridge adaptation across compatible upstream changes and rolls back
 on conflicts.
 
+### Automatic Vesktop and Vencord updates
+
+The optional user timer checks every two hours for a new native Arch Vesktop
+package, the latest Vencord revision, and changes to this project. It waits for
+Vesktop to close, then runs the manager's staged `update` and `repair` paths.
+Enable it from a persistent clone of this repository:
+
+```bash
+./scripts/install-auto-update.sh
+```
+
+Codex can diagnose a failed build, edit this local checkout, and retry repair if
+the Codex CLI is installed and signed in. This behavior is a separate explicit
+opt-in:
+
+```bash
+./scripts/install-auto-update.sh --ai-repair
+```
+
+Codex changes remain local for review; the updater never commits or pushes them.
+Remove the timer with `./scripts/install-auto-update.sh --remove`. See
+[`docs/installer.md`](docs/installer.md#automatic-vesktopvencord-updates) for
+requirements and behavior when the checkout has local changes.
+
 ```bash
 ./install.sh install    # install or reinstall
 ./install.sh status     # what is installed, who owns it
