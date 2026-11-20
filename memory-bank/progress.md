@@ -1,5 +1,15 @@
 # Progress — Discord Voice Overlay
 
+## v1.4.2 publication — 2026-11-20
+
+- Published GitHub Release `v1.4.2` from commit `373cdec`; the release workflow
+  passed Rust tests/build, plugin lint/tests/audit, pinned Vencord integration,
+  artifact packaging, and checksum generation.
+- Downloaded the published overlay binary and plugin archive. Both match
+  `SHA256SUMS`, and the binary reports `vesktop-voice-overlay 1.4.2`.
+- The optional AUR publication job completed with its documented skip because
+  this repository has no AUR SSH key configured.
+
 ## v1.4.2 release preparation — 2026-11-20
 
 - Prepared the unreleased Vesktop/Vencord updater and configurable AI repair
@@ -9,7 +19,7 @@
 - Local validation passed: Rust fmt/Clippy, 41 Rust tests, release build, plugin
   lint and 20 tests, 6 Omarchy bridge tests, and full installer fixtures. The
   main-branch CI and CodeQL runs for the implementation commits also passed;
-  release-tag gates and downloadable artifacts are pending.
+  see the publication record below for release-tag gates and verified assets.
 
 ## Optional Vesktop/Vencord auto-update — 2026-11-20
 
